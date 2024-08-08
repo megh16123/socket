@@ -2,6 +2,11 @@
 
 #define BUFFLEN 1024
 
+void sendToFile(FILE *f, char *buf) {
+  fseek(f, 0, SEEK_END);
+  fwrite(buf, BUFFLEN, 1, f);
+}
+
 int main(int argc, char **argv) {
   if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
@@ -9,7 +14,7 @@ int main(int argc, char **argv) {
     int linesRead = 0;
     int i = 0, j = 0;
     char buf[BUFFLEN];
-    int unew = 0, uold = 0, enew = 0, eold = 0;
+    int unew = 0, uold = 0, enew = 0, eold = 0, dsize = 0;
     if (NULL == config) {
       printf("File didn't open \n");
     } else {
@@ -31,9 +36,33 @@ int main(int argc, char **argv) {
         continue;
       while (1) {
         // read from ear
-        // process buffer -> may send to ui or mouth
+        fseek(be, 0, SEEK_END);
+        enew = ftell(be);
+        dsize = enew - eold;
+        if (dsize > 0) {
+          fseek(be, -dsize, SEEK_END);
+          dsize = dsize / BUFFLEN;
+          for (int i = 0; i < dsize; i++) {
+            fread(buf, sizeof(buf), 1, be);
+            // process buffer -> may send to ui or mouth
+
+            eold += (i + 1) * BUFFLEN;
+          }
+        }
         // read from ui
-        // process buffer -> may send to mouth or ui
+        fseek(uio, 0, SEEK_END);
+        unew = ftell(uio);
+        dsize = unew - uold;
+        if (dsize > 0) {
+          fseek(uio, -dsize, SEEK_END);
+          dsize = dsize / BUFFLEN;
+          for (int i = 0; i < dsize; i++) {
+            fread(buf, sizeof(buf), 1, uio);
+
+            // process buffer -> may send to mouth or ui
+            uold += (i + 1) * BUFFLEN;
+          }
+        }
       }
     }
 
