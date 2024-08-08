@@ -6,7 +6,11 @@ void sendToFile(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFFLEN, 1, f);
 }
-
+// TODO : Initiate ID:port table
+// TODO : Setup the Environment
+// TODO : Write command:data kind of interface between UI and Brain
+// TODO : Broadcast to other machines
+// TODO : Processing Language needs to be decided
 int main(int argc, char **argv) {
   if (argc == 2) {
     FILE *config = fopen(argv[1], "r");

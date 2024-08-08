@@ -6,7 +6,10 @@ void sendTobrain(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFFLEN, 1, f);
 }
-
+// TODO : Display Menu
+// TODO : Send COMMAND:Data to brain
+// TODO : wait for brain to respond with something
+// TODO : Display to the user
 int main(int argc, char **argv) {
   if (argc == 3) {
     char buf[BUFFLEN];
