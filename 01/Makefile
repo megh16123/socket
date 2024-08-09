@@ -16,4 +16,4 @@ brain: brain.c
 	gcc -o brain brain.c
 
 clean:
-	rm launcher ear mouth ui
+	rm launcher ear mouth ui 3000 4000 5000 6000 brain

@@ -5,6 +5,7 @@
 void sendToFile(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFFLEN, 1, f);
+  fseek(f, 0, SEEK_END);
 }
 // TODO : Initiate ID:port table
 // TODO : Setup the Environment
@@ -18,7 +19,6 @@ int main(int argc, char **argv) {
     int linesRead = 0;
     int i = 0, j = 0;
     char buf[BUFFLEN];
-    int unew = 0, uold = 0, enew = 0, eold = 0, dsize = 0;
     if (NULL == config) {
       printf("File didn't open \n");
     } else {
@@ -38,18 +38,25 @@ int main(int argc, char **argv) {
       while (((be = fopen(environment[2], "rb")) == NULL) ||
              ((uio = fopen(environment[4], "rb")) == NULL))
         continue;
+      fseek(be, 0, SEEK_END);
+      fseek(uio, 0, SEEK_END);
+      int unew = ftell(uio), uold = ftell(uio), enew = ftell(be),
+          eold = ftell(be), dsize = 0;
       while (1) {
         // read from ear
         fseek(be, 0, SEEK_END);
         enew = ftell(be);
         dsize = enew - eold;
         if (dsize > 0) {
+          printf("%d    :    %d\n", enew, eold);
           fseek(be, -dsize, SEEK_END);
           dsize = dsize / BUFFLEN;
           for (int i = 0; i < dsize; i++) {
             fread(buf, sizeof(buf), 1, be);
             // process buffer -> may send to ui or mouth
-
+            printf("Something Came\n");
+            printf("%d\n", *((short int *)buf));
+            printf("%s\n", ((char *)(((short int *)buf) + 1)));
             eold += (i + 1) * BUFFLEN;
           }
         }
