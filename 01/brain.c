@@ -48,7 +48,6 @@ int main(int argc, char **argv) {
         enew = ftell(be);
         dsize = enew - eold;
         if (dsize > 0) {
-          printf("%d    :    %d\n", enew, eold);
           fseek(be, -dsize, SEEK_END);
           dsize = dsize / BUFFLEN;
           for (int i = 0; i < dsize; i++) {

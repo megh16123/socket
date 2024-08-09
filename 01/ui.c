@@ -5,6 +5,7 @@
 void sendTobrain(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFFLEN, 1, f);
+  fseek(f, 0, SEEK_END);
 }
 // TODO : Display Menu
 // TODO : Send COMMAND:Data to brain
