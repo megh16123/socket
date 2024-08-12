@@ -15,9 +15,9 @@ void sendToFile(FILE *f, char *buf) {
 int main(int argc, char **argv) {
   if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
-    char environment[1024][1024];
+    char environment[1024][1024], messages[1024][1024];
     int linesRead = 0;
-    int i = 0, j = 0;
+    int i = 0, j = 0, mnum = 0, messages_came = 0, no_of_machines = 0;
     char buf[BUFFLEN];
     if (NULL == config) {
       printf("File didn't open \n");
@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
           j += 1;
         }
       }
+      no_of_machines = linesRead - 6;
       FILE *be, *bm, *uio, *uii;
       bm = fopen(environment[3], "ab");
       uii = fopen(environment[5], "ab");
@@ -52,8 +53,9 @@ int main(int argc, char **argv) {
           dsize = dsize / BUFFLEN;
           for (int i = 0; i < dsize; i++) {
             fread(buf, sizeof(buf), 1, be);
-            // process buffer -> may send to ui or mouth
-            printf("Something Came\n");
+            sprintf(messages[messages_came], "%d:%s", *((short int *)buf),
+                    ((char *)(((short int *)buf) + 1)));
+            messages_came += 1;
             printf("%d\n", *((short int *)buf));
             printf("%s\n", ((char *)(((short int *)buf) + 1)));
             eold += (i + 1) * BUFFLEN;
@@ -66,9 +68,27 @@ int main(int argc, char **argv) {
         if (dsize > 0) {
           fseek(uio, -dsize, SEEK_END);
           dsize = dsize / BUFFLEN;
-          for (int i = 0; i < dsize; i++) {
+          for (i = 0; i < dsize; i++) {
             fread(buf, sizeof(buf), 1, uio);
-
+            fseek(uio, BUFFLEN, SEEK_CUR);
+            switch (buf[0]) {
+            case '1':
+              break;
+            case '2':
+              *((int *)buf) = messages_came;
+              sendToFile(uii, buf);
+              for (j = 0; j < messages_came; j++) {
+                sendToFile(uii, messages[j]);
+              }
+              break;
+            case '3':
+              *((int *)buf) = no_of_machines;
+              sendToFile(uii, buf);
+              for (j = 0; j < no_of_machines; j++) {
+                sendToFile(uii, environment[j + 6]);
+              }
+              break;
+            }
             // process buffer -> may send to mouth or ui
             uold += (i + 1) * BUFFLEN;
           }

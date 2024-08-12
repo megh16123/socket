@@ -37,6 +37,9 @@ int main(int argc, char **argv) {
     }
     while ((f = fopen(argv[1], "rb")) == NULL)
       continue;
+    fseek(f, 0, SEEK_END);
+    new = ftell(f);
+    old = new;
     while (1) {
       fseek(f, 0, SEEK_END);
       new = ftell(f);

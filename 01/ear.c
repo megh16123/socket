@@ -1,5 +1,3 @@
-
-/* The C Programming Language by Kernighan and Ritchie */
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -47,8 +45,6 @@ int main(int argc, char **argv) {
       n = recvfrom(sockfd, buffer, BUFLEN - (sizeof(short int)), MSG_WAITALL,
                    (struct sockaddr *)&senderAddr, &len);
       buffer[n] = '\0';
-      printf("ear : %d\n", *(short int *)buffer);
-      printf("ear : %s\n", buffer + 2);
       sendTobrain(f, buffer);
     }
     fclose(f);

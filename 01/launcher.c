@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     margs[2] = NULL;
     uargs[0] = programs[3];
     uargs[1] = environment[4];
-    uargs[2] = environment[6];
+    uargs[2] = environment[5];
     uargs[3] = NULL;
     ///////////////////////////////////////////////////////////////////////////
 
