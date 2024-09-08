@@ -41,8 +41,7 @@ int main(int argc, char **argv) {
         continue;
       fseek(be, 0, SEEK_END);
       fseek(uio, 0, SEEK_END);
-      int unew = ftell(uio), uold = ftell(uio), enew = ftell(be),
-          eold = ftell(be), dsize = 0;
+      int unew = ftell(uio), uold = ftell(uio), enew = ftell(be), eold = ftell(be), dsize = 0;
       while (1) {
         // read from ear
         fseek(be, 0, SEEK_END);
