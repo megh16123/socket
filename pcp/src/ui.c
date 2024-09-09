@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     char choice;
     char *message;
     FILE *tobrain = fopen(argv[1], "ab"), *frombrain;
+    printf("UI L: %s\n",argv[1]);
     printf("fileeee :  %s\n", argv[2]);
     while ((frombrain = fopen(argv[2], "rb")) == NULL)
       continue;

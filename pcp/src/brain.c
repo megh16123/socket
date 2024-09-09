@@ -43,7 +43,7 @@ void sys_tick() {
   }
 }
 void createSysMessage(char type, short int from, short int to, unsigned char *sysId, unsigned char *data,int dsize, char *buffer, char*intfiles) {
-  int offset = 0, i = 0, ;
+  int offset = 0, i = 0,size ;
   result res;
   res = encoder(sysId, strlen(sysId));
   size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
@@ -74,11 +74,15 @@ void createSysMessage(char type, short int from, short int to, unsigned char *sy
    }
 }
 void printdecon(deconSys ds){
+	result res;
+	res = decoder(ds.data);
 	printf("type : %d\n",ds.type);
 	printf("from : %d\n",ds.from);
 	printf("to : %d\n",ds.to);
 	printf("sysId : %s\n",ds.sysId);
-	printf("data : %s\n",ds.data);
+	printf("data : %s\n",res.output);
+	printf("NUM BYTE : %d\n",(res.numByte));
+	printf("BUFFER SIZE : %d\n",*((int*)(ds.data+res.numByte)));
 }
 deconSys convertSysMessage(char *buffer){
 deconSys output;
@@ -104,13 +108,16 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 }/*else{}*/
 return output;
 }
-void bufferExchng() {
+void bufferExchng(char *intfiles) {
 	// for all knowns create system msg for buffer sending
 	int i =0;
-/*  nRecord *recordTable;*/
+	result res;
+	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
+	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
 	while(i < sysinfo->numRecords){
 		clm(bf);	
-      		createSysMessage(2, sysinfo->port, sysinfo->recordTable[i].port, sysinfo->recordTable[i].sid,(char*)&(sysinfo->sysBuffer),sizeof(int), bf,intfiles[1]);
+      		createSysMessage(2, sysinfo->port, sysinfo->recordTable[i].port, sysinfo->recordTable[i].sid,res.output,(res.numByte+sizeof(int)), bf,intfiles);
 		i += 1;
 	}
 	// push to bm
@@ -121,16 +128,14 @@ void bufferExchng() {
 	// mark the system down if there is no response again
 
 }
-void breakMsg(nRecord target, char* data, int dsize, char* bf){
-if(target.buffer > dsize){
-      createSysMessage(2, sysinfo->port, target.port, target.sid, data, dsize, bf);
-} else{
-
-}
-}
+//  void breakMsg(nRecord target, char* data, int dsize, char* bf){
+//  if(target.buffer > dsize){
+//        createSysMessage(2, sysinfo->port, target.port, target.sid, data, dsize, bf);
+//  } else{
+//  
+//  }
+//  }
 int main(int argc, char **argv) {
-  bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
-  clm(bf);
   // load config
   if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
@@ -174,6 +179,8 @@ int main(int argc, char **argv) {
               }
             }
           }
+  	bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
+  	clm(bf);
           i += 1;
           j = 0;
           line = (char *)malloc(20);
@@ -186,6 +193,7 @@ int main(int argc, char **argv) {
       while (((be = fopen(intfiles[0], "rb")) == NULL) ||
              ((uio = fopen(intfiles[2], "rb")) == NULL))
         continue;
+      printf("TEST2\n");
       fseek(be, 0, SEEK_END);
       fseek(uio, 0, SEEK_END);
       int unew = ftell(uio), uold = ftell(uio), enew = ftell(be),
@@ -194,14 +202,24 @@ int main(int argc, char **argv) {
       // *((short int *)bf) = sysinfo->recordTable[0].port;
       // sprintf((bf + sizeof(short int)), "Hello world this is a text message
       // ");
-      createSysMessage(2, sysinfo->port, sysinfo->recordTable[0].port, sysinfo->recordTable[0].sid, "This is a text message to be sent to another machine", 52, bf,intfiles[1]);
-      printdecon(convertSysMessage(bf+sizeof(short int)));
-      sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
       // buffer info exchangement
       // Peer information exchangement
       // Brain will start
+      bufferExchng(intfiles[1]);
       while (1) {
-        continue;
+        fseek(be, 0, SEEK_END);
+        enew = ftell(be);
+        dsize = enew - eold;
+        if (dsize > 0) {
+          fseek(be, -dsize, SEEK_END);
+          dsize = dsize / sysinfo->sysBuffer;
+          for (int i = 0; i < dsize; i++) {
+            clm(bf);
+            fread(bf,sysinfo->sysBuffer, 1, be);
+	    printdecon(convertSysMessage(bf));
+            eold += (i + 1) * sysinfo->sysBuffer;
+          }   
+        }
       }
     }
   } else {
