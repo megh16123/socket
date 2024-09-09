@@ -29,6 +29,7 @@ sysInfo *sysinfo;
 
 char timeFlag = 1;
 static long sysTime = 0;
+char *bf;
 FILE *f;
 void sendToFile(char *fname, char *buf, int size) {
   f = fopen(fname, "ab");
@@ -41,12 +42,11 @@ void sys_tick() {
     usleep(200);
   }
 }
-void createSysMessage(char type, short int from, short int to, unsigned char *sysId, unsigned char *data, int dsize, char *buffer) {
-  int offset = 0, i = 0, size;
+void createSysMessage(char type, short int from, short int to, unsigned char *sysId, unsigned char *data,int dsize, char *buffer, char*intfiles) {
+  int offset = 0, i = 0, ;
   result res;
   res = encoder(sysId, strlen(sysId));
-  size =
-      sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
+  size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
   if (sysinfo->sysBuffer >= size) {
     *((short int *)buffer) = to;
     offset += sizeof(short int);
@@ -68,9 +68,10 @@ void createSysMessage(char type, short int from, short int to, unsigned char *sy
       *(buffer + offset + i) = data[i];
       i += 1;
     }
-  } /*else{
-     *
-   }*/
+    sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
+  } else{
+     
+   }
 }
 void printdecon(deconSys ds){
 	printf("type : %d\n",ds.type);
@@ -103,7 +104,33 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 }/*else{}*/
 return output;
 }
+void bufferExchng() {
+	// for all knowns create system msg for buffer sending
+	int i =0;
+/*  nRecord *recordTable;*/
+	while(i < sysinfo->numRecords){
+		clm(bf);	
+      		createSysMessage(2, sysinfo->port, sysinfo->recordTable[i].port, sysinfo->recordTable[i].sid,(char*)&(sysinfo->sysBuffer),sizeof(int), bf,intfiles[1]);
+		i += 1;
+	}
+	// push to bm
+	// start timer
+	// wait for feedback
+	// if feedback is there then update the buffer to the minimum of the systems
+	// if feedback is not there then again buffer exchange will happen after the timerexpires
+	// mark the system down if there is no response again
+
+}
+void breakMsg(nRecord target, char* data, int dsize, char* bf){
+if(target.buffer > dsize){
+      createSysMessage(2, sysinfo->port, target.port, target.sid, data, dsize, bf);
+} else{
+
+}
+}
 int main(int argc, char **argv) {
+  bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
+  clm(bf);
   // load config
   if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
@@ -164,15 +191,10 @@ int main(int argc, char **argv) {
       int unew = ftell(uio), uold = ftell(uio), enew = ftell(be),
           eold = ftell(be), dsize = 0;
 
-      char bf[sysinfo->sysBuffer + sizeof(short int)];
-      clm(bf);
       // *((short int *)bf) = sysinfo->recordTable[0].port;
       // sprintf((bf + sizeof(short int)), "Hello world this is a text message
       // ");
-      createSysMessage(2, sysinfo->port, sysinfo->recordTable[0].port,
-                       sysinfo->recordTable[0].sid,
-                       "This is a text message to be sent to another machine",
-                       52, bf);
+      createSysMessage(2, sysinfo->port, sysinfo->recordTable[0].port, sysinfo->recordTable[0].sid, "This is a text message to be sent to another machine", 52, bf,intfiles[1]);
       printdecon(convertSysMessage(bf+sizeof(short int)));
       sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
       // buffer info exchangement
