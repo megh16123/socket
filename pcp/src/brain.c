@@ -4,29 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-typedef struct {
-  char *sid;
-  short int port;
-  int buffer;
-  char status;
-} nRecord;
-typedef struct{
- char type;
- short int from;
- short int to;
- unsigned char *sysId;
- unsigned char *data;
-}deconSys;
+#include "brainutil.h"
 
-typedef struct {
-  unsigned char *systemId;
-  short int port;
-  int numRecords;
-  nRecord *recordTable;
-  int sysBuffer;
-} sysInfo;
 sysInfo *sysinfo;
-
+senderRecord* senderTable;
+senderRecord *temp,*pointer;
+int numrecords=0;
 char timeFlag = 1;
 static long sysTime = 0;
 char *bf;
@@ -42,99 +25,14 @@ void sys_tick() {
     usleep(200);
   }
 }
-void createSysMessage(char type, short int from, short int to, unsigned char *sysId, unsigned char *data,int dsize, char *buffer, char*intfiles) {
-  int offset = 0, i = 0,size ;
-  result res;
-  res = encoder(sysId, strlen(sysId));
-  size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
-  if (sysinfo->sysBuffer >= size) {
-    *((short int *)buffer) = to;
-    offset += sizeof(short int);
-    *((int *)(buffer + offset)) = size;
-    offset += sizeof(int);
-    *(buffer + offset) = type;
-    offset += sizeof(char);
-    *((short int *)(buffer + offset)) = from;
-    offset += sizeof(short int);
-    *((short int *)(buffer + offset)) = to;
-    offset += sizeof(short int);
-    while (i < res.numByte) {
-      *(buffer + offset + i) = res.output[i];
-      i += 1;
-    }
-    offset += res.numByte;
-    i = 0;
-    while (i < dsize) {
-      *(buffer + offset + i) = data[i];
-      i += 1;
-    }
-    sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
-  } else{
-     
-   }
-}
-void printdecon(deconSys ds){
-	result res;
-	res = decoder(ds.data);
-	printf("type : %d\n",ds.type);
-	printf("from : %d\n",ds.from);
-	printf("to : %d\n",ds.to);
-	printf("sysId : %s\n",ds.sysId);
-	printf("data : %s\n",res.output);
-	printf("NUM BYTE : %d\n",(res.numByte));
-	printf("BUFFER SIZE : %d\n",*((int*)(ds.data+res.numByte)));
-}
-deconSys convertSysMessage(char *buffer){
-deconSys output;
-result res;
-int offset = 0,i=0,dsize=0;
-if(*((int*)buffer) <= sysinfo->sysBuffer){
-	offset += sizeof(int);
-	output.type = *(buffer + offset) ;
-    	offset += sizeof(char);
-	output.from = *((short int *)(buffer + offset)) ;
-    	offset += sizeof(short int);
-	output.to = *((short int *)(buffer + offset)) ;
-    	offset += sizeof(short int);
-	res = decoder((unsigned char*)(buffer+offset));
-	output.sysId = res.output;
-	offset += res.numByte;
-	dsize = (*((int*)buffer)-offset);	
-	output.data = (unsigned char*)malloc(dsize);
-	while(i < dsize){
-		output.data[i] = *(buffer+offset+i);
-		i += 1;
-	}
-}/*else{}*/
-return output;
-}
-void bufferExchng(char *intfiles) {
-	// for all knowns create system msg for buffer sending
-	int i =0;
-	result res;
-	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
-	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
-	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
-	while(i < sysinfo->numRecords){
-		clm(bf);	
-      		createSysMessage(2, sysinfo->port, sysinfo->recordTable[i].port, sysinfo->recordTable[i].sid,res.output,(res.numByte+sizeof(int)), bf,intfiles);
-		i += 1;
-	}
-	// push to bm
-	// start timer
-	// wait for feedback
-	// if feedback is there then update the buffer to the minimum of the systems
-	// if feedback is not there then again buffer exchange will happen after the timerexpires
-	// mark the system down if there is no response again
 
-}
-//  void breakMsg(nRecord target, char* data, int dsize, char* bf){
-//  if(target.buffer > dsize){
-//        createSysMessage(2, sysinfo->port, target.port, target.sid, data, dsize, bf);
-//  } else{
-//  
-//  }
-//  }
+void createSysMessage(char, nRecord*, unsigned char*, int, char*, char*);
+void printdecon(deconSys);
+deconSys convertSysMessage(char*);
+void bufferExchng(char*);
+
+
+
 int main(int argc, char **argv) {
   // load config
   if (argc == 2) {
@@ -173,12 +71,15 @@ int main(int argc, char **argv) {
                 sysinfo->recordTable[recordIt].sid = line;
               } else {
                 sysinfo->recordTable[recordIt].port = (short int)atoi(line);
-                sysinfo->recordTable[recordIt].buffer = -1;
+                sysinfo->recordTable[recordIt].buffer = DEFAULT_BUFFER;
                 sysinfo->recordTable[recordIt].status = '?';
                 recordIt += 1;
               }
             }
           }
+	senderTable = createSenderRecord(-1,0,NULL,0,NULL,NULL);
+	senderTable->next = senderTable;
+	pointer = senderTable;
   	bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
   	clm(bf);
           i += 1;
@@ -227,3 +128,96 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
+void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize, char *buffer, char*intfiles) {
+  int offset = 0, i = 0,size ;
+  result res;
+  res = encoder(nr->sid, strlen(nr->sid));
+  size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
+  if (nr->buffer >= size) {
+    *((short int *)buffer) = nr->port;
+    offset += sizeof(short int);
+    *((int *)(buffer + offset)) = size;
+    offset += sizeof(int);
+    *(buffer + offset) = type;
+    offset += sizeof(char);
+    *((short int *)(buffer + offset)) = nr->port;
+    offset += sizeof(short int);
+    *((short int *)(buffer + offset)) = sysinfo->port;
+    offset += sizeof(short int);
+    while (i < res.numByte) {
+      *(buffer + offset + i) = res.output[i];
+      i += 1;
+    }
+    offset += res.numByte;
+    i = 0;
+    while (i < dsize) {
+      *(buffer + offset + i) = data[i];
+      i += 1;
+    }
+    sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
+  } else{
+     
+   }
+}
+void printdecon(deconSys ds){
+	result res;
+	res = decoder(ds.data);
+	printf("\ntype : %d\n",ds.type);
+	printf("from : %d\n",ds.from);
+	printf("to : %d\n",ds.to);
+	printf("sysId : %s\n",ds.sysId);
+	printf("data : %s\n",res.output);
+	printf("NUM BYTE : %d\n",(res.numByte));
+	printf("BUFFER SIZE : %d\n",*((int*)(ds.data+res.numByte)));
+}
+deconSys convertSysMessage(char *buffer){
+deconSys output;
+result res;
+int offset = 0,i=0,dsize=0;
+if(*((int*)buffer) <= sysinfo->sysBuffer){
+	offset += sizeof(int);
+	output.type = *(buffer + offset) ;
+    	offset += sizeof(char);
+	output.from = *((short int *)(buffer + offset)) ;
+    	offset += sizeof(short int);
+	output.to = *((short int *)(buffer + offset)) ;
+    	offset += sizeof(short int);
+	res = decoder((unsigned char*)(buffer+offset));
+	output.sysId = res.output;
+	offset += res.numByte;
+	dsize = (*((int*)buffer)-offset);	
+	output.data = (unsigned char*)malloc(dsize);
+	while(i < dsize){
+		output.data[i] = *(buffer+offset+i);
+		i += 1;
+	}
+}/*else{}*/
+return output;
+}
+void bufferExchng(char *intfiles) {
+	// for all knowns create system msg for buffer sending
+	int i =0;
+	result res;
+	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
+	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
+	while(i < sysinfo->numRecords){
+		clm(bf);	
+      		createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)), bf,intfiles);
+		i += 1;
+	}
+	// push to bm
+	// start timer
+	// wait for feedback
+	// if feedback is there then update the buffer to the minimum of the systems
+	// if feedback is not there then again buffer exchange will happen after the timerexpires
+	// mark the system down if there is no response again
+
+}
+//  void breakMsg(nRecord target, char* data, int dsize, char* bf){
+//  if(target.buffer > dsize){
+//        createSysMessage(2, sysinfo->port, target.port, target.sid, data, dsize, bf);
+//  } else{
+//  
+//  }
+//  }
