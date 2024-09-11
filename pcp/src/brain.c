@@ -35,7 +35,9 @@ void bufferExchng(char*);
 
 int main(int argc, char **argv) {
   // load config
-  if (argc == 2) {
+    srand(0);
+    result t;
+    if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
     int i = 0, j = 0, recordIt = 0;
@@ -73,11 +75,12 @@ int main(int argc, char **argv) {
                 sysinfo->recordTable[recordIt].port = (short int)atoi(line);
                 sysinfo->recordTable[recordIt].buffer = DEFAULT_BUFFER;
                 sysinfo->recordTable[recordIt].status = '?';
+                sysinfo->recordTable[recordIt].numTicks = 1000;
                 recordIt += 1;
               }
             }
           }
-	senderTable = createSenderRecord(-1,0,NULL,0,NULL,NULL);
+	senderTable = createSenderRecord(-1,0,NULL,0,t,NULL);
 	senderTable->next = senderTable;
 	pointer = senderTable;
   	bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
@@ -128,6 +131,10 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
+result generateMsgId(){
+	int id=1000+rand()%9000;
+ return encoder((unsigned char*)&id,sizeof(int));
+}
 void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize, char *buffer, char*intfiles) {
   int offset = 0, i = 0,size ;
   result res;
@@ -154,6 +161,7 @@ void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize, char
       *(buffer + offset + i) = data[i];
       i += 1;
     }
+    createSenderRecord(type,0,nr,nr->numTicks,generateMsgId(),data);
     sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
   } else{
      

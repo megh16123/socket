@@ -9,6 +9,7 @@ typedef struct {
   short int port;
   int buffer;
   char status;
+ long numTicks;	
 } nRecord;
 
 typedef struct{
@@ -24,7 +25,7 @@ struct senderR{
  char status;
  nRecord *nr;
  long numTicks;	
- result*messageId;
+ result messageId;
  char* message;
  struct senderR* next;
 };
@@ -39,4 +40,4 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,nRecord* nr,long numTicks,result *messageId,char* message);
+senderRecord* createSenderRecord(char type,char status,nRecord* nr,long numTicks,result messageId,char* message);
