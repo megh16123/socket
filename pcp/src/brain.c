@@ -5,7 +5,11 @@
 #include <string.h>
 #include <unistd.h>
 #include "brainutil.h"
-
+// TODO  Reciever Table 
+// TODO  Post buffer send routine
+// TODO  Reciever Routine
+// TODO  nRecord Table sharing routine 
+// TODO  Difference computation routine
 sysInfo *sysinfo;
 senderRecord* senderTable;
 senderRecord *temp,*pointer;
