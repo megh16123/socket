@@ -1,7 +1,7 @@
 #include"ecdc.h"
 #include"brainutil.h"
 extern senderRecord* senderTable;
-senderRecord* createSenderRecord(char type,char status,nRecord* nr,long numTicks,result *messageId,char* message){
+senderRecord* createSenderRecord(char type,char status,nRecord* nr,long numTicks,result messageId,char* message){
 	senderRecord* output = (senderRecord*)malloc(sizeof(senderRecord));
 	output->type = type;
 	output->status = status;
@@ -18,6 +18,12 @@ void doJob(){
 	do{
 	prev = temp;
 	temp = temp->next;
+	if(temp->numTicks != 0)
+	{
+		temp->numTicks--;
+	}else{
+		continue;
+	}
 // 	process the data
 
 // if delete 

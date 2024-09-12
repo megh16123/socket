@@ -21,6 +21,16 @@ void sendToFile(char *fname, char *buf, int size) {
 }
 void sys_tick() {
   while (timeFlag) {
+    senderRecord* temp = senderTable,*prev;
+	  do{
+	    prev = temp;
+	    temp = temp->next;
+	    if(temp->numTicks != 0){
+		    temp->numTicks--;
+	    }else{
+		    continue;
+	    }
+	  }while(temp != senderTable);
     sysTime = (sysTime % 0xFFFFFFFFFFFFFFFF) + 1;
     usleep(200);
   }
@@ -75,7 +85,7 @@ int main(int argc, char **argv) {
                 sysinfo->recordTable[recordIt].port = (short int)atoi(line);
                 sysinfo->recordTable[recordIt].buffer = DEFAULT_BUFFER;
                 sysinfo->recordTable[recordIt].status = '?';
-                sysinfo->recordTable[recordIt].numTicks = 1000;
+                sysinfo->recordTable[recordIt].numTicks = DEFAULT_TICKS;
                 recordIt += 1;
               }
             }

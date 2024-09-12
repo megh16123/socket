@@ -1,4 +1,5 @@
 #define DEFAULT_BUFFER 512
+#define DEFAULT_TICKS 1000
 #define addToSenderTable(a,b,c,d,e,f) {  temp = pointer->next; \
 	pointer->next = createSenderRecord(a,b,c,d,e,f);\
 	pointer->next->next = temp;\
