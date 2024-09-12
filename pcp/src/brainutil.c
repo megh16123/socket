@@ -18,8 +18,7 @@ void doJob(){
 	do{
 	prev = temp;
 	temp = temp->next;
-	if(temp->numTicks != 0)
-	{
+	if(temp->numTicks != 0){
 		temp->numTicks--;
 	}else{
 		continue;

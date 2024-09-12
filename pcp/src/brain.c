@@ -17,7 +17,8 @@ int numrecords=0;
 char timeFlag = 1;
 static long sysTime = 0;
 char *bf;
-FILE *f;
+FILE *f, *be, *uio;
+int enew = 0, eold =0;
 void sendToFile(char *fname, char *buf, int size) {
   f = fopen(fname, "ab");
   fwrite(buf, 1, size, f);
@@ -31,6 +32,7 @@ void sys_tick() {
 	    temp = temp->next;
 	    if(temp->numTicks != 0){
 		    temp->numTicks--;
+        printf("type : %d status : %d sid : %s numticks : %ld mid : %s message: %s\n",temp->type,temp->status,(temp->nr)->sid,temp->numTicks,temp->messageId.output,temp->message);
 	    }else{
 		    continue;
 	    }
@@ -44,8 +46,7 @@ void createSysMessage(char, nRecord*, unsigned char*, int, char*, char*);
 void printdecon(deconSys);
 deconSys convertSysMessage(char*);
 void bufferExchng(char*);
-
-
+deconSys getFromEar();
 
 int main(int argc, char **argv) {
   // load config
@@ -107,15 +108,16 @@ int main(int argc, char **argv) {
         }
       }
 
-      FILE *be, *bm, *uio, *uii;
       while (((be = fopen(intfiles[0], "rb")) == NULL) ||
              ((uio = fopen(intfiles[2], "rb")) == NULL))
         continue;
       printf("TEST2\n");
       fseek(be, 0, SEEK_END);
       fseek(uio, 0, SEEK_END);
-      int unew = ftell(uio), uold = ftell(uio), enew = ftell(be),
-          eold = ftell(be), dsize = 0;
+      int unew = ftell(uio), uold = ftell(uio);
+      enew = ftell(be);
+      eold = ftell(be);
+      int dsize = 0;
 
       // *((short int *)bf) = sysinfo->recordTable[0].port;
       // sprintf((bf + sizeof(short int)), "Hello world this is a text message
@@ -134,7 +136,7 @@ int main(int argc, char **argv) {
           for (int i = 0; i < dsize; i++) {
             clm(bf);
             fread(bf,sysinfo->sysBuffer, 1, be);
-	    printdecon(convertSysMessage(bf));
+	          printdecon(convertSysMessage(bf));
             eold += (i + 1) * sysinfo->sysBuffer;
           }   
         }
@@ -175,7 +177,7 @@ void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize, char
       *(buffer + offset + i) = data[i];
       i += 1;
     }
-    createSenderRecord(type,0,nr,nr->numTicks,generateMsgId(),data);
+    createSenderRecord(type,3,nr,nr->numTicks,generateMsgId(),data);
     sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
   } else{
      
@@ -220,14 +222,31 @@ void bufferExchng(char *intfiles) {
 	// for all knowns create system msg for buffer sending
 	int i =0;
 	result res;
+  deconsys iMsg;
 	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
 	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
 	while(i < sysinfo->numRecords){
 		clm(bf);	
-      		createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)), bf,intfiles);
+    createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)), bf,intfiles);
 		i += 1;
 	}
+  while(!isEmptySenderTable(senderTable)){
+    // check buffer acknowledgement received or not
+    iMsg = getFromEar();
+    switch(iMsg.type){
+      case 2: 
+        break;
+      case -1:
+        break;
+      default:
+        // add to receiver table
+    }
+    // if no then check timer and resend to those whose timer is 0 again go to step 1
+    // else check timer if is not 0 then update buffer size  and mark up and delete record
+    // else check status , if yes then delete record and mark down
+    // else reset timer and update status (+1) and resend msg go to step 1  
+  }
 	// push to bm
 	// start timer
 	// wait for feedback
@@ -235,6 +254,22 @@ void bufferExchng(char *intfiles) {
 	// if feedback is not there then again buffer exchange will happen after the timerexpires
 	// mark the system down if there is no response again
 
+}
+deconSys getFromEar(){
+  int dsize,i;
+  deconSys output;
+  output.type = -1;
+  fseek(be, 0, SEEK_END);
+  enew = ftell(be);
+  dsize = enew - eold;
+  if (dsize > 0) {
+    fseek(be, -dsize, SEEK_END);
+    clm(bf);
+    fread(bf,sysinfo->sysBuffer, 1, be);
+    output =(convertSysMessage(bf));
+    eold += sysinfo->sysBuffer;
+  }
+  return output;   
 }
 //  void breakMsg(nRecord target, char* data, int dsize, char* bf){
 //  if(target.buffer > dsize){
