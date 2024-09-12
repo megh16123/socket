@@ -17,6 +17,7 @@ typedef struct{
  char type;
  short int from;
  short int to;
+ int messageId;
  unsigned char *sysId;
  unsigned char *data;
 }deconSys;
