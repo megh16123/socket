@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
   // load config
     srand(0);
     result t;
-    deconsys iMsg;
+    deconSys iMsg;
     if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
@@ -256,7 +256,7 @@ void bufferExchng(char *intfiles) {
 	// for all knowns create system msg for buffer sending
 	int i =0;
 	result res;
-    deconsys iMsg;
+  deconsys iMsg;
 	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
 	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
@@ -306,4 +306,32 @@ deconSys getFromEar(){
 //  } else{
 //  
 //  }
-//  }
+void deleteByMsgId(int messageId){
+  senderRecord* temp = senderTable,*prev;
+	do{
+	  prev = temp;
+	  temp = temp->next;
+	  if((int*)(temp->result)->output == messageId){
+		  prev->next = temp->next;
+      return;
+	  }else{
+		  continue;
+	  }while(temp != senderTable)
+  }
+}
+int doesExistMsgId(int messageId,2){
+  senderRecord* temp = senderTable,*prev;
+  do{
+	  prev = temp;
+	  temp = temp->next;
+	  if((int*)(temp->result)->output == messageId && temp.type == 2){
+      return 1;
+	  }else{
+		  continue;
+	  }
+    }while(temp != senderTable)
+    return 0;
+}
+getRecordByPort(short int from){
+  
+}

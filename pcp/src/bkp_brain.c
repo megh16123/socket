@@ -42,24 +42,16 @@ void sys_tick() {
   }
 }
 
-void createSysMessage(char, nRecord*, unsigned char*, int, char*,result);
+void createSysMessage(char, nRecord*, unsigned char*, int, char*, char*);
 void printdecon(deconSys);
 deconSys convertSysMessage(char*);
 void bufferExchng(char*);
 deconSys getFromEar();
-result generateMsgId();
-void deleteByMsgId(int messageId);
-char doesExistMsgId(int messageId,char type);
-char doesExistbyTo(short int from,char type);
-nRecord* getRecordByPort(short int from);
-nRecord* getRecordBySid(char* sid);
-nRecord* createRecord();
-void checkStateAndProcess();
+
 int main(int argc, char **argv) {
   // load config
     srand(0);
     result t;
-    deconSys iMsg;
     if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
@@ -125,9 +117,8 @@ int main(int argc, char **argv) {
       int unew = ftell(uio), uold = ftell(uio);
       enew = ftell(be);
       eold = ftell(be);
-      int dsize = 0,offset=0;
-      result res;
-      nRecord *sender;
+      int dsize = 0;
+
       // *((short int *)bf) = sysinfo->recordTable[0].port;
       // sprintf((bf + sizeof(short int)), "Hello world this is a text message
       // ");
@@ -136,41 +127,19 @@ int main(int argc, char **argv) {
       // Brain will start
       bufferExchng(intfiles[1]);
       while (1) {
-        iMsg = getFromEar();
-        if(iMsg.type != -1){
-            switch(iMsg.type){
-                case 0:
-                    deleteByMsgId(iMsg.messageId);
-                    break;
-                case 1:
-                    if(1 == doesExistMsgId(iMsg.messageId,2)){
-                        sender = getRecordByPort(iMsg.from);
-                        sender->buffer = *((int*)(iMsg.data));
-                        // send ok
-                        createSysMessage(0,sender,"",0,intfiles[1],encoder((unsigned char*)&iMsg.messageId,sizeof(int)));
-                        // TODO delete message of this messageId
-                        deleteByMsgId(iMsg.messageId);
-                    }
-                    break;
-                case 2:
-                        if(1 == doesExistbyTo(iMsg.from,2)){
-
-                        }else{
-                            res = decoder(iMsg.data);
-                            offset += res.numByte;
-                            sender = getRecordBySid(res.output);
-                            sender->port = iMsg.from;
-                            sender->buffer = *((int*)(iMsg.data+offset));
-                            sender->buffer = (sysinfo->sysBuffer<=sender->buffer)?sysinfo->sysBuffer:sender->buffer;
-                            sender->status = 1;
-                            sender->numTicks = DEFAULT_TICKS;
-                            // send 1	
-                            createSysMessage(1,sender,(unsigned char*)(&sender->buffer),sizeof(int),intfiles[1],encoder((unsigned char*)&iMsg.messageId,sizeof(int)));
-                        }
-                    break;
-            }
-      }else{}
-        // checkStateAndProcess();
+        fseek(be, 0, SEEK_END);
+        enew = ftell(be);
+        dsize = enew - eold;
+        if (dsize > 0) {
+          fseek(be, -dsize, SEEK_END);
+          dsize = dsize / sysinfo->sysBuffer;
+          for (int i = 0; i < dsize; i++) {
+            clm(bf);
+            fread(bf,sysinfo->sysBuffer, 1, be);
+	          printdecon(convertSysMessage(bf));
+            eold += (i + 1) * sysinfo->sysBuffer;
+          }   
+        }
       }
     }
   } else {
@@ -180,43 +149,35 @@ int main(int argc, char **argv) {
 }
 result generateMsgId(){
 	int id=1000+rand()%9000;
-    return encoder((unsigned char*)&id,sizeof(int));
+ return encoder((unsigned char*)&id,sizeof(int));
 }
-void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize,char* intfiles,result messageId) {
+void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize, char *buffer, char*intfiles) {
   int offset = 0, i = 0,size ;
   result res;
   res = encoder(nr->sid, strlen(nr->sid));
-  size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char)+messageId.numByte;
-  clm(bf);
+  size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char);
   if (nr->buffer >= size) {
-    *((short int *)bf) = nr->port;
+    *((short int *)buffer) = nr->port;
     offset += sizeof(short int);
-    *((int *)(bf + offset)) = size;
+    *((int *)(buffer + offset)) = size;
     offset += sizeof(int);
-    *(bf + offset) = type;
+    *(buffer + offset) = type;
     offset += sizeof(char);
-    *((short int *)(bf + offset)) = nr->port;
+    *((short int *)(buffer + offset)) = nr->port;
     offset += sizeof(short int);
-    *((short int *)(bf + offset)) = sysinfo->port;
+    *((short int *)(buffer + offset)) = sysinfo->port;
     offset += sizeof(short int);
-    i = 0;
-    while(i < messageId.numByte){
-        *(bf + offset + i) = messageId.output[i];
-        i += 1;
-    }
-    offset += messageId.numByte;
-    i = 0;
     while (i < res.numByte) {
-      *(bf + offset + i) = res.output[i];
+      *(buffer + offset + i) = res.output[i];
       i += 1;
     }
     offset += res.numByte;
     i = 0;
     while (i < dsize) {
-      *(bf + offset + i) = data[i];
+      *(buffer + offset + i) = data[i];
       i += 1;
     }
-    createSenderRecord(type,3,nr,nr->numTicks,messageId,data);
+    createSenderRecord(type,3,nr,nr->numTicks,generateMsgId(),data);
     sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
   } else{
      
@@ -248,9 +209,6 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	res = decoder((unsigned char*)(buffer+offset));
 	output.sysId = res.output;
 	offset += res.numByte;
-    res = decoder((unsigned char*)(buffer+offset));
-    output.messageId = *((int*)res.output);
-    offset += res.numByte;
 	dsize = (*((int*)buffer)-offset);	
 	output.data = (unsigned char*)malloc(dsize);
 	while(i < dsize){
@@ -269,10 +227,31 @@ void bufferExchng(char *intfiles) {
 	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
 	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
 	while(i < sysinfo->numRecords){
-        createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)),intfiles,generateMsgId());
+		clm(bf);	
+    createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)), bf,intfiles);
 		i += 1;
 	}
-}
+  while(!isEmptySenderTable(senderTable)){
+    // check buffer acknowledgement received or not
+    iMsg = getFromEar();
+  }
+    // switch(iMsg.type){
+    //   case 2: 
+        
+    //     break;
+    //   case 3:
+    //     break;
+    //   default:
+    //   }
+    //     // add to receiver table
+	// push to bm
+	// start timer
+	// wait for feedback
+	// if feedback is there then update the buffer to the minimum of the systems
+	// if feedback is not there then again buffer exchange will happen after the timerexpires
+	// mark the system down if there is no response again
+
+  }
 deconSys getFromEar(){
   int dsize,i;
   deconSys output;
@@ -295,79 +274,4 @@ deconSys getFromEar(){
 //  } else{
 //  
 //  }
-void deleteByMsgId(int messageId){
-  senderRecord* temp = senderTable,*prev;
-	do{
-	  prev = temp;
-	  temp = temp->next;
-	  if(*((int*)((temp->messageId).output)) == messageId){
-		  prev->next = temp->next;
-      free(temp);
-	  }else{
-		  continue;
-	  }  
-    }while(temp != senderTable);
-
-}
-char doesExistMsgId(int messageId,char type){
-  senderRecord* temp = senderTable,*prev;
-  do{
-	  prev = temp;
-	  temp = temp->next;
-	  if(*((int*)((temp->messageId).output)) == messageId && temp->type == type){
-      return 1;
-	  }else{
-		  continue;
-	  }
-    }while(temp != senderTable);
-    return 0;
-}
-nRecord* getRecordByPort(short int from){
-  int i = 0;
-  while(i < sysinfo->numRecords){
-    if((sysinfo->recordTable[i]).port == from){
-      return &sysinfo->recordTable[i];
-    }
-  }
-  return NULL;
-}
-nRecord* createRecord(){
-	sysinfo->numRecords += 1;
-	sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sysinfo->numRecords);
-	return sysinfo->recordTable+(sysinfo->numRecords)-1;
-}
-nRecord* getRecordBySid(char* sid){
-  int i = 0;
-  while(i < sysinfo->numRecords){
-    if(!strcmp((sysinfo->recordTable[i]).sid ,sid)){
-      return &sysinfo->recordTable[i];
-    }
-  } 
-
-  return createRecord();
-}
-char doesExistbyTo(short int from,char type){
-  senderRecord* temp = senderTable,*prev;
-  do{
-	  prev = temp;
-	  temp = temp->next;
-	  if((temp->nr)->port == from && temp->type == type){
-      return 1;
-	  }else{
-		  continue;
-	  }
-    }while(temp != senderTable);
-    return 0;
-}
-void checkStateAndProcess(){
-  senderRecord* temp = senderTable,*prev;
-  do{
-	  prev = temp;
-	  temp = temp->next;
-	  if(){
-
-	  }else{
-		  continue;
-	  }
-    }while(temp != senderTable);
-}
+//  }
