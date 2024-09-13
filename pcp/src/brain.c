@@ -362,12 +362,17 @@ char doesExistbyTo(short int from,char type){
 void checkStateAndProcess(){
   senderRecord* temp = senderTable,*prev;
   do{
+//   type; status; numTicks; result messageId;
 	  prev = temp;
 	  temp = temp->next;
-	  if(){
-
+	  if((0 == temp->numTicks) && (0 == status)){
+	 	prev->next = temp->next;
+	  }else if((0==temp->numTicks)){
+		 // send the message again
+		 // reset the numTicks
+		 // decrement the status 
 	  }else{
-		  continue;
+	  	continue;
 	  }
     }while(temp != senderTable);
 }
