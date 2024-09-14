@@ -1,12 +1,18 @@
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #define DEFAULT_BUFFER 512
 #define DEFAULT_TICKS 1000
+#define DEFAULT_STATUS 3 
 #define addToSenderTable(a,b,c,d,e,f) {  temp = pointer->next; \
 	pointer->next = createSenderRecord(a,b,c,d,e,f);\
 	pointer->next->next = temp;\
 	pointer = pointer->next;\
 	} 
 typedef struct {
-  char *sid;
+  unsigned char *sid;
   short int port;
   int buffer;
   char status;
@@ -25,9 +31,9 @@ typedef struct{
 struct senderR{
  char type;
  char status;
- nRecord *nr;
+ int nr;
  long numTicks;	
- result messageId;
+ int messageId;
  char* message;
  struct senderR* next;
 };
@@ -42,4 +48,18 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,nRecord* nr,long numTicks,result messageId,char* message);
+senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message);
+
+void createSysMessage(char,char, int, unsigned char*, int,int);
+void printdecon(deconSys);
+deconSys convertSysMessage(char*);
+void bufferExchng();
+deconSys getFromEar();
+int generateMsgId();
+void deleteByMsgId(int messageId);
+char doesExistMsgId(int messageId,char type);
+char doesExistbyTo(short int from,char type);
+int getRecordByPort(short int from);
+int getRecordBySid(char* sid);
+int createRecord();
+void checkStateAndProcess();

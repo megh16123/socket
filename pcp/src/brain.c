@@ -1,70 +1,67 @@
 #include "ecdc.h"
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 #include "brainutil.h"
-// TODO  Reciever Table 
-// TODO  Post buffer send routine
-// TODO  Reciever Routine
-// TODO  nRecord Table sharing routine 
+#include <time.h>
 // TODO  Difference computation routine
+// TODO  nRecord Table sharing routine 
+
+static long sysTime = 0;
 sysInfo *sysinfo;
 senderRecord* senderTable;
 senderRecord *temp,*pointer;
-int numrecords=0;
+int numRecords=0;
 char timeFlag = 1;
-static long sysTime = 0;
 char *bf;
 FILE *f, *be, *uio;
+char *intfiles[4];
 int enew = 0, eold =0;
+
+
 void sendToFile(char *fname, char *buf, int size) {
   f = fopen(fname, "ab");
+printf("send : %d\n",*(short int*)buf);	
   fwrite(buf, 1, size, f);
   fclose(f);
 }
 void sys_tick() {
   while (timeFlag) {
     senderRecord* temp = senderTable,*prev;
-	  do{
-	    prev = temp;
-	    temp = temp->next;
-	    if(temp->numTicks != 0){
-		    temp->numTicks--;
-        printf("type : %d status : %d sid : %s numticks : %ld mid : %s message: %s\n",temp->type,temp->status,(temp->nr)->sid,temp->numTicks,temp->messageId.output,temp->message);
-	    }else{
-		    continue;
-	    }
-	  }while(temp != senderTable);
+    prev = temp;
+    temp = temp->next;
+    while(temp != senderTable){
+	 if(temp->numTicks != 0){
+             temp->numTicks--;
+//              printf("type : %d status : %d sid : %s numticks : %ld mid : %s message: %s\n",temp->type,temp->status,(temp->nr)->sid,temp->numTicks,temp->messageId.output,temp->message);
+ 	 }
+    	prev = temp;
+    	temp = temp->next;
+     }
     sysTime = (sysTime % 0xFFFFFFFFFFFFFFFF) + 1;
     usleep(200);
   }
 }
 
-void createSysMessage(char, nRecord*, unsigned char*, int, char*,result);
-void printdecon(deconSys);
-deconSys convertSysMessage(char*);
-void bufferExchng(char*);
-deconSys getFromEar();
-result generateMsgId();
-void deleteByMsgId(int messageId);
-char doesExistMsgId(int messageId,char type);
-char doesExistbyTo(short int from,char type);
-nRecord* getRecordByPort(short int from);
-nRecord* getRecordBySid(char* sid);
-nRecord* createRecord();
-void checkStateAndProcess();
+void pst(){
+   temp = senderTable;
+   senderRecord *prev;
+   prev = temp;
+   temp = temp->next;
+   while((temp != senderTable)){
+           //printf("%d %s %d \n",temp->type,temp->nr->sid,temp->nr->port);
+           printf("%d %s %d\n",temp->type,sysinfo->recordTable[temp->nr].sid,temp->messageId);
+ 	  prev = temp;
+ 	  temp = temp->next;
+}
+}
 int main(int argc, char **argv) {
+     time_t t;
+     srand((unsigned)time(&t));
   // load config
-    srand(0);
-    result t;
     deconSys iMsg;
     if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
     int i = 0, j = 0, recordIt = 0;
-    char *intfiles[4], *line;
+    char *line;
     pthread_t tmp;
     sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
     pthread_create(&tmp, NULL, (void *)&sys_tick, NULL);
@@ -103,7 +100,7 @@ int main(int argc, char **argv) {
               }
             }
           }
-	senderTable = createSenderRecord(-1,0,NULL,0,t,NULL);
+	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL);
 	senderTable->next = senderTable;
 	pointer = senderTable;
   	bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
@@ -119,7 +116,6 @@ int main(int argc, char **argv) {
       while (((be = fopen(intfiles[0], "rb")) == NULL) ||
              ((uio = fopen(intfiles[2], "rb")) == NULL))
         continue;
-      printf("TEST2\n");
       fseek(be, 0, SEEK_END);
       fseek(uio, 0, SEEK_END);
       int unew = ftell(uio), uold = ftell(uio);
@@ -127,50 +123,55 @@ int main(int argc, char **argv) {
       eold = ftell(be);
       int dsize = 0,offset=0;
       result res;
-      nRecord *sender;
+      int sender;
       // *((short int *)bf) = sysinfo->recordTable[0].port;
       // sprintf((bf + sizeof(short int)), "Hello world this is a text message
       // ");
       // buffer info exchangement
       // Peer information exchangement
       // Brain will start
-      bufferExchng(intfiles[1]);
+      bufferExchng(); 
       while (1) {
         iMsg = getFromEar();
         if(iMsg.type != -1){
             switch(iMsg.type){
                 case 0:
+		    printf("CASE 0 : %s %s\n",sysinfo->systemId,iMsg.data);
                     deleteByMsgId(iMsg.messageId);
                     break;
                 case 1:
                     if(1 == doesExistMsgId(iMsg.messageId,2)){
                         sender = getRecordByPort(iMsg.from);
-                        sender->buffer = *((int*)(iMsg.data));
+		    	printf("CASE 1 : %s %d %d\n",sysinfo->systemId,iMsg.from,sender);
+                        sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
                         // send ok
-                        createSysMessage(0,sender,"",0,intfiles[1],encoder((unsigned char*)&iMsg.messageId,sizeof(int)));
-                        // TODO delete message of this messageId
                         deleteByMsgId(iMsg.messageId);
+                        createSysMessage(0,DEFAULT_STATUS,sender,"OK",2,iMsg.messageId);
+                        // TODO delete message of this messageId
                     }
                     break;
                 case 2:
                         if(1 == doesExistbyTo(iMsg.from,2)){
-
+		    	    printf("iCASE 2 : %s \n",sysinfo->systemId);
                         }else{
+		    	    printf("eCASE 2 : %s   %d\n",sysinfo->systemId,iMsg.from);
                             res = decoder(iMsg.data);
                             offset += res.numByte;
                             sender = getRecordBySid(res.output);
-                            sender->port = iMsg.from;
-                            sender->buffer = *((int*)(iMsg.data+offset));
-                            sender->buffer = (sysinfo->sysBuffer<=sender->buffer)?sysinfo->sysBuffer:sender->buffer;
-                            sender->status = 1;
-                            sender->numTicks = DEFAULT_TICKS;
+			    sysinfo->recordTable[sender].sid=res.output;
+                            sysinfo->recordTable[sender].port = iMsg.from;
+                            sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data+offset));
+                            sysinfo->recordTable[sender].buffer = (sysinfo->sysBuffer<=sysinfo->recordTable[sender].buffer)?sysinfo->sysBuffer:sysinfo->recordTable[sender].buffer;
+                            sysinfo->recordTable[sender].status = 1;
+                            sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
                             // send 1	
-                            createSysMessage(1,sender,(unsigned char*)(&sender->buffer),sizeof(int),intfiles[1],encoder((unsigned char*)&iMsg.messageId,sizeof(int)));
+                            createSysMessage(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);
+
                         }
                     break;
             }
       }else{}
-        // checkStateAndProcess();
+         //checkStateAndProcess();
       }
     }
   } else {
@@ -178,17 +179,22 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
-result generateMsgId(){
-	int id=1000+rand()%9000;
-    return encoder((unsigned char*)&id,sizeof(int));
+
+int generatemsgid(){
+	int id=1000+(rand())%9000;
+    return id;
 }
-void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize,char* intfiles,result messageId) {
+void createSysMessage(char type,char status,int index, unsigned char *data,int dsize,int mId) {
   int offset = 0, i = 0,size ;
-  result res;
+  result res,messageId;
+  messageId = encoder((unsigned char*)&mId,sizeof(int));
+nRecord* nr = &sysinfo->recordTable[index];
   res = encoder(nr->sid, strlen(nr->sid));
   size = sizeof(int) + sizeof(short int) * 2 + res.numByte + dsize + sizeof(char)+messageId.numByte;
   clm(bf);
   if (nr->buffer >= size) {
+    if(type == 0){
+}
     *((short int *)bf) = nr->port;
     offset += sizeof(short int);
     *((int *)(bf + offset)) = size;
@@ -205,6 +211,7 @@ void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize,char*
         i += 1;
     }
     offset += messageId.numByte;
+   messageId = decoder(bf+(offset-messageId.numByte));
     i = 0;
     while (i < res.numByte) {
       *(bf + offset + i) = res.output[i];
@@ -216,8 +223,14 @@ void createSysMessage(char type,nRecord *nr, unsigned char *data,int dsize,char*
       *(bf + offset + i) = data[i];
       i += 1;
     }
-    createSenderRecord(type,3,nr,nr->numTicks,messageId,data);
-    sendToFile(intfiles, bf, sysinfo->sysBuffer + sizeof(short int));
+//    printf("eMID : %d MID : %d\n",mId,*((int*)messageId.output));
+//printf("alo %s ,%d\n",nr->sid,strlen(nr->sid));
+printf("S--------------\n");
+//pst();
+    addToSenderTable(type,status,index,nr->numTicks,mId,data);
+pst();
+printf("E--------------\n");
+    sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
   } else{
      
    }
@@ -228,10 +241,10 @@ void printdecon(deconSys ds){
 	printf("\ntype : %d\n",ds.type);
 	printf("from : %d\n",ds.from);
 	printf("to : %d\n",ds.to);
-	printf("sysId : %s\n",ds.sysId);
+	printf("sysid : %s\n",ds.sysId);
 	printf("data : %s\n",res.output);
-	printf("NUM BYTE : %d\n",(res.numByte));
-	printf("BUFFER SIZE : %d\n",*((int*)(ds.data+res.numByte)));
+	printf("num byte : %d\n",(res.numByte));
+	printf("buffer size : %d\n",*((int*)(ds.data+res.numByte)));
 }
 deconSys convertSysMessage(char *buffer){
 deconSys output;
@@ -241,16 +254,17 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	offset += sizeof(int);
 	output.type = *(buffer + offset) ;
     	offset += sizeof(char);
+	output.to= *((short int *)(buffer + offset)) ;
+    	offset += sizeof(short int);
 	output.from = *((short int *)(buffer + offset)) ;
     	offset += sizeof(short int);
-	output.to = *((short int *)(buffer + offset)) ;
-    	offset += sizeof(short int);
+        res = decoder((unsigned char*)(buffer+offset));
+        output.messageId = *((int*)res.output);
+        offset += res.numByte;
 	res = decoder((unsigned char*)(buffer+offset));
 	output.sysId = res.output;
+	printf("SID : %s\n",output.sysId);
 	offset += res.numByte;
-    res = decoder((unsigned char*)(buffer+offset));
-    output.messageId = *((int*)res.output);
-    offset += res.numByte;
 	dsize = (*((int*)buffer)-offset);	
 	output.data = (unsigned char*)malloc(dsize);
 	while(i < dsize){
@@ -260,18 +274,19 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 }/*else{}*/
 return output;
 }
-void bufferExchng(char *intfiles) {
+void bufferExchng() {
 	// for all knowns create system msg for buffer sending
 	int i =0;
 	result res;
-  deconSys iMsg;
+  	deconSys imsg;
 	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
 	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
 	while(i < sysinfo->numRecords){
-        createSysMessage(2,&sysinfo->recordTable[i],res.output,(res.numByte+sizeof(int)),intfiles,generateMsgId());
+        createSysMessage(2,DEFAULT_STATUS,i,res.output,(res.numByte+sizeof(int)),generatemsgid());
 		i += 1;
 	}
+
 }
 deconSys getFromEar(){
   int dsize,i;
@@ -280,6 +295,7 @@ deconSys getFromEar(){
   fseek(be, 0, SEEK_END);
   enew = ftell(be);
   dsize = enew - eold;
+//printf("hello %d %d\n",enew,eold);
   if (dsize > 0) {
     fseek(be, -dsize, SEEK_END);
     clm(bf);
@@ -296,83 +312,91 @@ deconSys getFromEar(){
 //  
 //  }
 void deleteByMsgId(int messageId){
-  senderRecord* temp = senderTable,*prev;
-	do{
-	  prev = temp;
-	  temp = temp->next;
-	  if(*((int*)((temp->messageId).output)) == messageId){
-		  prev->next = temp->next;
-      free(temp);
-	  }else{
-		  continue;
-	  }  
-    }while(temp != senderTable);
+  	senderRecord *prev;
+	temp = senderTable;
+ 	prev = temp;
+ 	temp = temp->next;
+	while(temp != senderTable){
+	 if(temp->messageId == messageId){
+		 prev->next = temp->next;
+		 // free the space 
+	 }
+	 prev = temp;
+	 temp = temp->next;
+ }
 
 }
 char doesExistMsgId(int messageId,char type){
-  senderRecord* temp = senderTable,*prev;
-  do{
-	  prev = temp;
-	  temp = temp->next;
-	  if(*((int*)((temp->messageId).output)) == messageId && temp->type == type){
-      return 1;
-	  }else{
-		  continue;
-	  }
-    }while(temp != senderTable);
-    return 0;
+  char output = 0;
+  senderRecord* prev;
+  temp = senderTable;
+  prev = temp;
+  temp = temp->next;
+  while(temp != senderTable && 0 == output){
+	 if(temp->messageId == messageId && temp->type == type){
+	 output = 1;
+	 } 
+	 prev = temp;
+	 temp = temp->next;
+	}
+    return output;
 }
-nRecord* getRecordByPort(short int from){
+int getRecordByPort(short int from){
   int i = 0;
   while(i < sysinfo->numRecords){
     if((sysinfo->recordTable[i]).port == from){
-      return &sysinfo->recordTable[i];
+      return i;
     }
+i+=1;
   }
-  return NULL;
+  return -1;
 }
-nRecord* createRecord(){
+int createRecord(){
 	sysinfo->numRecords += 1;
-	sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sysinfo->numRecords);
-	return sysinfo->recordTable+(sysinfo->numRecords)-1;
+sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sysinfo->numRecords);
+pst();
+	return ((sysinfo->numRecords)-1);
 }
-nRecord* getRecordBySid(char* sid){
+int getRecordBySid(char* sid){
   int i = 0;
   while(i < sysinfo->numRecords){
     if(!strcmp((sysinfo->recordTable[i]).sid ,sid)){
-      return &sysinfo->recordTable[i];
+      return i;
     }
+i+=1;
   } 
 
   return createRecord();
 }
 char doesExistbyTo(short int from,char type){
   senderRecord* temp = senderTable,*prev;
-  do{
+  char output = 0;
+  prev = temp;
+  temp = temp->next;
+  while((temp != senderTable)&&(0 == output)){
+	  if((sysinfo->recordTable[temp->nr]).port == from && temp->type == type){
+      		output = 1;
+	  }
 	  prev = temp;
 	  temp = temp->next;
-	  if((temp->nr)->port == from && temp->type == type){
-      return 1;
-	  }else{
-		  continue;
-	  }
-    }while(temp != senderTable);
-    return 0;
+	}
+    return output;
 }
 void checkStateAndProcess(){
-  senderRecord* temp = senderTable,*prev;
-  do{
-//   type; status; numTicks; result messageId;
+ 	senderRecord* prev;
+	temp = senderTable;
+	prev = temp;
+	temp = temp->next;
+	while(temp != senderTable){
+			// free the space in both if else
+		  if((0 == temp->numTicks) && (0 == temp->status)){
+			// mark the target system dead
+	 		prev->next = temp->next;
+	 	   }else if((0==temp->numTicks)){
+        		createSysMessage(temp->type,(temp->status-1),temp->nr,temp->message,strlen(temp->message),temp->messageId);
+	 		prev->next = temp->next;
+               	   }
 	  prev = temp;
 	  temp = temp->next;
-	  if((0 == temp->numTicks) && (0 == status)){
-	 	prev->next = temp->next;
-	  }else if((0==temp->numTicks)){
-		 // send the message again
-		 // reset the numTicks
-		 // decrement the status 
-	  }else{
-	  	continue;
-	  }
-    }while(temp != senderTable);
+    }
 }

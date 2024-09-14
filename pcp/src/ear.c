@@ -12,6 +12,7 @@ static int BUFLEN;
 void sendTobrain(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFLEN, 1, f);
+//printf("hello: %s\n",buf);
   fseek(f, 0, SEEK_END);
 }
 
@@ -42,10 +43,11 @@ int main(int argc, char **argv) {
     }
     len = sizeof(senderAddr);
     while (1) {
+    memset(buffer, 0, BUFLEN);
       n = recvfrom(sockfd, buffer, BUFLEN - (sizeof(short int)), MSG_WAITALL,
                    (struct sockaddr *)&senderAddr, &len);
       buffer[n] = '\0';
-      printf("%s\n", buffer);
+
       sendTobrain(f, buffer);
     }
     fclose(f);

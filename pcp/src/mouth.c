@@ -45,6 +45,8 @@ int main(int argc, char **argv) {
       new = ftell(f);
       dsize = new - old;
       if (dsize > 0) {
+//printf("mouth : %d\n",*(short int*)buf);	
+printf("mouth\n ");	
         fseek(f, -dsize, SEEK_END);
         dsize = dsize / BUFLEN;
         for (int i = 0; i < dsize; i++) {
