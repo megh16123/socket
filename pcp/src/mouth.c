@@ -10,13 +10,11 @@
 static int BUFLEN;
 
 #define clm(x) (memset(x, 0, sizeof(x)))
-void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr,
-                 char *messageStr, const short int port) {
+void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr, char *messageStr, const short int port) {
   (*receiverAddr).sin_family = AF_INET;
   (*receiverAddr).sin_port = htons(port);
   (*receiverAddr).sin_addr.s_addr = INADDR_ANY;
-  sendto(*sockfd, (const char *)messageStr, BUFLEN - sizeof(short int), 0,
-         (const struct sockaddr *)receiverAddr, sizeof(*receiverAddr));
+  sendto(*sockfd, (const char *)messageStr, BUFLEN - sizeof(short int), 0, (const struct sockaddr *)receiverAddr, sizeof(struct sockaddr_in));
 }
 
 int main(int argc, char **argv) {
@@ -46,16 +44,15 @@ int main(int argc, char **argv) {
       dsize = new - old;
       if (dsize > 0) {
 //printf("mouth : %d\n",*(short int*)buf);	
-printf("mouth\n ");	
-        fseek(f, -dsize, SEEK_END);
-        dsize = dsize / BUFLEN;
-        for (int i = 0; i < dsize; i++) {
+          fseek(f, -dsize, SEEK_END);
+          dsize = dsize / BUFLEN;
+	  for(int i=0; i< dsize;i++){
+	  
           clm(buf);
           fread(buf, BUFLEN, 1, f);
-          sendmessage(&sockfd, &receiverAddr, buf + sizeof(short int),
-                      *((short int *)buf));
-          old += (i + 1) * BUFLEN;
-        }
+          sendmessage(&sockfd, &receiverAddr, buf + sizeof(short int), *((short int *)buf));
+          old +=  (i+1)* BUFLEN;
+	  }
       } else {
         continue;
       }
