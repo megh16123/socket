@@ -46,7 +46,6 @@ int main(int argc, char **argv) {
     memset(buffer, 0, BUFLEN);
       n = recvfrom(sockfd, buffer, BUFLEN - (sizeof(short int)), MSG_WAITALL, (struct sockaddr *)&senderAddr, &len);
       buffer[n] = '\0';
-      printf("EAR\n");
       sendTobrain(f, buffer);
     }
     fclose(f);

@@ -27,4 +27,4 @@ clean:
 	ls configs | sed 's;\(.*\);sed -n '"'"'4,7p '"'"' configs/\1;'  | sh | sed 's;\(.*\);rm -f \1;' | sh
 	#sh killer
 	echo "Deleted"
-	make
+	#make

@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
 int main(int argc, char **argv) {
   if (argc == 2) {
-    FILE *config = fopen(argv[1], "r");
+    FILE *config = fopen(argv[1], "r"),*f;
     char *programs[4] = {"mouth", "ear", "ui", "brain"};
     char environment[1024][1024];
     int linesRead = 0;
@@ -19,6 +18,9 @@ int main(int argc, char **argv) {
         if (environment[i][j] == '\n') {
           linesRead += 1;
           environment[i][j] = '\0';
+	  if( linesRead >= 4 && linesRead <=7){
+    		fclose(fopen(environment[i],"w"));
+	  }
           i += 1;
           j = 0;
         } else {

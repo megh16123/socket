@@ -11,6 +11,7 @@ static int BUFLEN;
 
 #define clm(x) (memset(x, 0, sizeof(x)))
 void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr, char *messageStr, const short int port) {
+printf("mouth write: %d\n",port);	
   (*receiverAddr).sin_family = AF_INET;
   (*receiverAddr).sin_port = htons(port);
   (*receiverAddr).sin_addr.s_addr = INADDR_ANY;
@@ -42,17 +43,14 @@ int main(int argc, char **argv) {
       fseek(f, 0, SEEK_END);
       new = ftell(f);
       dsize = new - old;
-      if (dsize > 0) {
-//printf("mouth : %d\n",*(short int*)buf);	
+//       printf("new : %d\told : %d\n",new,old);
+      if (dsize > 0 && 0 == (dsize % BUFLEN)) {
           fseek(f, -dsize, SEEK_END);
           dsize = dsize / BUFLEN;
-	  for(int i=0; i< dsize;i++){
-	  
           clm(buf);
           fread(buf, BUFLEN, 1, f);
           sendmessage(&sockfd, &receiverAddr, buf + sizeof(short int), *((short int *)buf));
-          old +=  (i+1)* BUFLEN;
-	  }
+          old +=  BUFLEN;
       } else {
         continue;
       }
