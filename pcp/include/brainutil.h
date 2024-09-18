@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include<math.h>
 #define DEFAULT_BUFFER 512
 #define DEFAULT_TICKS 1000
 #define DEFAULT_STATUS 3 
-#define addToSenderTable(a,b,c,d,e,f) {  temp = pointer->next; \
-	pointer->next = createSenderRecord(a,b,c,d,e,f);\
+#define addToSenderTable(a,b,c,d,e,f,g) {  temp = pointer->next; \
+	pointer->next = createSenderRecord(a,b,c,d,e,f,g);\
 	pointer->next->next = temp;\
 	pointer = pointer->next;\
 	} 
@@ -35,6 +36,8 @@ struct senderR{
  long numTicks;	
  int messageId;
  char* message;
+ int bvc;
+ unsigned char* bv;
  struct senderR* next;
 };
 
@@ -48,7 +51,7 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message);
+senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,int bvc);
 
 void createSysMessage(char,char, int, unsigned char*, int,int);
 void printdecon(deconSys);

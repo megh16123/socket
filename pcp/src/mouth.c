@@ -11,7 +11,6 @@ static int BUFLEN;
 
 #define clm(x) (memset(x, 0, sizeof(x)))
 void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr, char *messageStr, const short int port) {
-printf("mouth write: %d\n",port);	
   (*receiverAddr).sin_family = AF_INET;
   (*receiverAddr).sin_port = htons(port);
   (*receiverAddr).sin_addr.s_addr = INADDR_ANY;
