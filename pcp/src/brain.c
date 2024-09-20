@@ -234,7 +234,7 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
     } else{
 	printf("in\n");
-	cs = nr->buffer - (17 + 2 * ceil(log2(nr->buffer)) + res.numByte);	
+	cs = nr->buffer - (16 + res.numByte);	
 	noc = ceil(dsize/(double)cs);
 	i = 0;
 	*(bf+offset) = noc;
