@@ -12,6 +12,13 @@
 	pointer->next->next = temp;\
 	pointer = pointer->next;\
 	} 
+
+#define addToRecieverTable(a,b,c,d,e,f,g) {  rtemp = rpointer->next; \
+	rpointer->next = createRecieverRecord(a,b,c,d,e,f,g);\
+	rpointer->next->next = rtemp;\
+	rpointer = rpointer->next;\
+	} 
+
 typedef struct {
   unsigned char *sid;
   short int port;
@@ -22,6 +29,7 @@ typedef struct {
 
 typedef struct{
  char type;
+ int size;
  short int from;
  short int to;
  int messageId;
@@ -36,12 +44,27 @@ struct senderR{
  long numTicks;	
  int messageId;
  char* message;
- int bvc;
+ char bvc;
  unsigned char* bv;
  struct senderR* next;
 };
 
 typedef struct senderR senderRecord;
+
+struct recieverR{
+ char type;
+ char status;
+ short int from;
+ long numTicks;	
+ int messageId;
+ char* data;
+ char bvc;
+ unsigned char* bv;
+ struct recieverR* next;
+};
+
+typedef struct recieverR recieverRecord;
+
 
 typedef struct {
   unsigned char *systemId;
@@ -51,7 +74,9 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,int bvc);
+senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc);
+
+recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc);
 
 void createSysMessage(char,char, int, unsigned char*, int,int);
 void printdecon(deconSys);
@@ -61,6 +86,7 @@ deconSys getFromEar();
 int generateMsgId();
 void deleteByMsgId(int messageId);
 char doesExistMsgId(int messageId,char type);
+recieverRecord* rdoesExistByMsgId(int messageId,char type);
 char doesExistbyTo(short int from,char type);
 int getRecordByPort(short int from);
 int getRecordBySid(char* sid);
