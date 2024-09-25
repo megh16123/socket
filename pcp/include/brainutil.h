@@ -7,8 +7,8 @@
 #define DEFAULT_BUFFER 512
 #define DEFAULT_TICKS 1000
 #define DEFAULT_STATUS 3 
-#define addToSenderTable(a,b,c,d,e,f,g) {  temp = pointer->next; \
-	pointer->next = createSenderRecord(a,b,c,d,e,f,g);\
+#define addToSenderTable(a,b,c,d,e,f,g,h) {  temp = pointer->next; \
+	pointer->next = createSenderRecord(a,b,c,d,e,f,g,h);\
 	pointer->next->next = temp;\
 	pointer = pointer->next;\
 	} 
@@ -41,6 +41,7 @@ struct senderR{
  char type;
  char status;
  int nr;
+ int dsize;
  long numTicks;	
  int messageId;
  char* message;
@@ -74,7 +75,7 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc);
+senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc,int dsize);
 
 recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc);
 
@@ -92,3 +93,6 @@ int getRecordByPort(short int from);
 int getRecordBySid(char* sid);
 int createRecord();
 void checkStateAndProcess();
+char bitVectorContainsZero(unsigned char* bv, char bvc);
+char bitCountToIndex(char index,unsigned char* bv, char bvc);
+senderRecord* getRecordByMsgId(int messageId);

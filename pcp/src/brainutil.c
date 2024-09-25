@@ -1,6 +1,7 @@
 #include"ecdc.h"
 #include"brainutil.h"
-senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc){
+
+senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc,int dsize){
 	senderRecord* output = (senderRecord*)malloc(sizeof(senderRecord));
 	output->type = type;
 	output->status = status;
@@ -10,6 +11,7 @@ senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int 
 	output->numTicks = numTicks;
 	output->messageId = messageId;
 	output->message = message;
+	output->dsize = dsize;
 	output->next = NULL;
 	return output;
 }

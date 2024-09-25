@@ -30,7 +30,8 @@ void sendToFile(char *fname, char *buf, int size) {
 
 void sys_tick() {
   while (timeFlag) {
-    senderRecord* temp = senderTable,*prev;
+    senderRecord *temp = senderTable;
+    senderRecord *prev;
     prev = temp;
     temp = temp->next;
     while(temp != senderTable){
@@ -41,7 +42,7 @@ void sys_tick() {
     	temp = temp->next;
      }
     
-    recieverRecord* rtemp = recieverTable,*rprev;
+  /*  recieverRecord* rtemp = recieverTable,*rprev;
     rprev = rtemp;
     rtemp = rtemp->next;
     while(rtemp != recieverTable){
@@ -50,7 +51,7 @@ void sys_tick() {
  	 }
     	rprev = rtemp;
     	rtemp = rtemp->next;
-     }
+     }*/
 
     sysTime = (sysTime % 0xFFFFFFFFFFFFFFFF) + 1;
     usleep(900);
@@ -61,9 +62,10 @@ void printRecordTable(){
 	int i=0;
         printf("---------------------------------\n");
    	printf("  ID\t\tPort\tBuffer\n");
-	while(i<sysinfo->numRecords)
+	while(i<(sysinfo->numRecords))
 	{
-		printf("%s\t\t%d\t%d\n",sysinfo->recordTable[i].sid,sysinfo->recordTable[i].port,sysinfo->recordTable[i].buffer);i++;
+		printf("%s\t\t%d\t%d\n",(sysinfo->recordTable[i]).sid,(sysinfo->recordTable[i]).port,(sysinfo->recordTable[i]).buffer);
+		i++;
 	}
    printf("---------------------------------\n");
 }
@@ -81,6 +83,13 @@ void prt(){
  	  temp = temp->next;
 }
    printf("---------------------------------------\n");
+}
+
+void print(senderRecord* temp){
+   printf("-------------spec----------------\n");
+   printf("  mesgID\tType\tTo\n");
+           printf("  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid);
+   printf("---------------------------------\n");
 }
 
 void pst(){
@@ -111,8 +120,6 @@ int main(int argc, char **argv) {
     char *line;
     pthread_t tmp;
     sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
-    pthread_create(&tmp, NULL, (void *)&sys_tick, NULL);
-    pthread_detach(tmp);
     if (NULL == config) {
       printf("File didn't open \n");
     } else {
@@ -131,6 +138,7 @@ int main(int argc, char **argv) {
             intfiles[linesRead - 4] = line;
           } else if (8 == linesRead) {
             sysinfo->numRecords = atoi(line);
+	if(sysinfo->numRecords!=0)
             sysinfo->recordTable =
                 (nRecord *)malloc(sysinfo->numRecords * sizeof(nRecord));
           } else {
@@ -147,15 +155,6 @@ int main(int argc, char **argv) {
               }
             }
           }
-	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL,0);
-	recieverTable = createRecieverRecord(-1,0,-1,0,-1,NULL,0);
-	senderTable->next = senderTable;
-	recieverTable->next = recieverTable;
-	pointer = senderTable;
-	rpointer = recieverTable;
-  	
-	bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
-  	clm(bf);
           i += 1;
           j = 0;
           line = (char *)malloc(20);
@@ -163,10 +162,19 @@ int main(int argc, char **argv) {
           j += 1;
         }
       }
-
+	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL,0,0);
+	recieverTable = createRecieverRecord(-1,0,-1,0,-1,NULL,0);
+	senderTable->next = senderTable;
+	recieverTable->next = recieverTable;
+	pointer = senderTable;
+	rpointer = recieverTable;
       while (((be = fopen(intfiles[0], "rb")) == NULL) ||
              ((uio = fopen(intfiles[2], "rb")) == NULL))
         continue;
+      pthread_create(&tmp, NULL, (void *)&sys_tick, NULL);
+      pthread_detach(tmp);
+      bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
+      clm(bf);
       fseek(be, 0, SEEK_END);
       fseek(uio, 0, SEEK_END);
       int unew = ftell(uio), uold = ftell(uio);
@@ -179,52 +187,60 @@ int main(int argc, char **argv) {
       while (1) {
         iMsg = getFromEar();
         if(iMsg.type != -1){
+		printf("haha:%d\n",iMsg.type);
             switch(iMsg.type){
                 case 0:
-                    createSysMessage(5,DEFAULT_STATUS,0,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj",5120,iMsg.messageId+1);
+		    printf("CASE 0\n");
+                    sender = getRecordByPort(iMsg.from);
+ 	            char *ata=(char*)malloc(5121*sizeof(char));
+ 		    i=0;
+ 		    while(i<5120)ata[i++]='j';ata[i]='\0';
+                     createSysMessage(5,DEFAULT_STATUS,0,ata,5120,iMsg.messageId+1);
                     deleteByMsgId(iMsg.messageId);
-                    deleteByMsgId(iMsg.messageId+1);
                     break;
                 case 1:
+		    printf("CASE 1\n");
                     if(1 == doesExistMsgId(iMsg.messageId,2)){
                         sender = getRecordByPort(iMsg.from);
                         sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
-                        // send ok
-                        deleteByMsgId(iMsg.messageId);
+                        // s/end ok
+                           deleteByMsgId(iMsg.messageId);
                         createSysMessage(0,DEFAULT_STATUS,sender,"OK",2,iMsg.messageId);
-                    	deleteByMsgId(iMsg.messageId);
                     }
                     break;
                 case 2:
+		    printf("CASE 2\n");
                         if(1 == doesExistbyTo(iMsg.from,2)){
 		    	    printf("iCASE 2 : %s \n",sysinfo->systemId);
                         }else{
+		    	    printf("eCASE 2 : %s \n",sysinfo->systemId);
                             res = decoder(iMsg.data);
                             offset = res.numByte;
                             sender = getRecordBySid(res.output);
 			    sysinfo->recordTable[sender].sid=res.output;
                             sysinfo->recordTable[sender].port = iMsg.from;
 			    sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data+offset));
-                            sysinfo->recordTable[sender].buffer = (sysinfo->sysBuffer<=sysinfo->recordTable[sender].buffer)?sysinfo->sysBuffer:sysinfo->recordTable[sender].buffer;
-                            sysinfo->recordTable[sender].status = 1;
+			    //printf("BUFF : %d\n",sysinfo->recordTable[sender].buffer);
+			    sysinfo->recordTable[sender].buffer = (sysinfo->sysBuffer<=sysinfo->recordTable[sender].buffer)?sysinfo->sysBuffer:sysinfo->recordTable[sender].buffer;
+			    sysinfo->recordTable[sender].status = 1;
                             sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
                             // send 1	
                             createSysMessage(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);
                         }
                     break;
 	case 5:
-		//printf("CASE 5 %d from %d\n",iMsg.messageId,iMsg.from);
+		printf("CASE 5 %d from %d\n",iMsg.messageId,iMsg.from);
 		recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,5);
 		sender = getRecordByPort(iMsg.from);
 		cs = iMsg.size - 2; 
 		printf("index: %d\n",*(iMsg.data+1));
 		if(NULL != rec){
-			*(rec->bv + (((int)(*(iMsg.data+1))) / 8)) |= mask((((int)(*(iMsg.data+1))) % 8));
-			rec->numTicks = DEFAULT_TICKS;
-		i = 0;
-		while(i < cs){
-			*(rec->data + cs*(*(iMsg.data+1))+i) = *(iMsg.data+2+i);
-			i+=1;
+			i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
+			*(rec->bv + (i / 8)) |= mask(i % 8);
+		j = 0;
+		while(j < cs){
+			*(rec->data + cs*(i)+j) = *(iMsg.data+2+j);
+			j+=1;
 			}
 		i = 0;
 		}else{
@@ -245,10 +261,41 @@ int main(int argc, char **argv) {
 		}
 		prt();
 		break;
-            }
-       //printRecordTable();
+		case 6:
+			printf("CASE 6\n");
+			senderRecord* srec = getRecordByMsgId(iMsg.messageId);
+			recieverRecord* rrec = rdoesExistByMsgId(iMsg.messageId,iMsg.type);
+			i=0;
+			//while(i<100)printf(":%d",srec->message[i++]);
+			int cs ,dsize = strlen(srec->message); // noc and cs needed
+			result res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			cs = (sysinfo->recordTable[getRecordByPort(iMsg.from)].buffer) - (16 + res.numByte);	
+			char i = 0,output=0,wp=0;
+			char* data = (char*) malloc((sizeof(char)*dsize)+1);
+			while(i < srec->bvc){
+				if(((iMsg.data[i/8])&mask(i%8)) == 0){
+					if(i == srec->bvc-1){
+						cs = dsize%cs;
+					}
+					printf("i : %d cs: %d\n",i,cs);
+					for(int j = 0; j < cs ; j++){
+						*(data+wp+j) = *((srec->message)+(cs*i)+j);
+					}	
+				//	*(data + wp) = '\0';
+					wp += cs;
+				}
+				i+=1;
+			}
+			srec->message = data;
+			srec->status = srec->status+1;
+			srec->numTicks = 0;	
+			
+			//createSysMessage	            
+	}
+
+       printRecordTable();
       }else{}
-       checkStateAndProcess();
+        //checkStateAndProcess();
       }
     }
   } else {
@@ -256,6 +303,9 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
+
+
+
 void clear(char *str)
 {
 	int i=0;
@@ -310,6 +360,7 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
       		*(bf + offset + i) = data[i];
       		i += 1;
     	}		
+    	printf("BUF : %d\n",nr->buffer);
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
     } else{
 	cs = nr->buffer - (16 + res.numByte);	
@@ -324,15 +375,14 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
 	 *(bf+offset) = ic;
 	 if(ic==noc-1){
 		rem=dsize%cs;
-		size = (rem+2);
-    		*((int *)(bf + sizeof(short int))) = size;
+    		*((int *)(bf + sizeof(short int))) = (size+rem+2);
 		while (i < rem) {
       		*(bf + offset + 1 + i) = data[(((int)ic)*cs)+i];
       		i += 1;
 		}
+		
 	} else{ 
-		size = (cs+2);
-    		*((int *)(bf + sizeof(short int))) = size;
+    		*((int *)(bf + sizeof(short int))) = (size+cs+2);
 		while (i < cs) {
       		*(bf + offset + 1 + i) = data[(((int)ic)*cs)+i];
       		i += 1;
@@ -341,9 +391,17 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
 	ic += 1;
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
 	}
-	printf(" CS : %d NOC : %d\n",cs,noc);	
     }
-    addToSenderTable(type,status,index,nr->numTicks,mId,data,noc);
+ 	printf("befo:%d\n",dsize);
+    	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+//     if(!doesExistMsgId(mId,type) ){
+//     	addToSenderTable(type,status,index,(nr->numTicks)*noc,mId,data,noc);
+// 	printf(" CS : %d NOC : %d\n",cs,noc);	
+//     }else{
+// 	senderRecord* temp = getRecordByMsgId(mId);
+// 	temp->status=DEFAULT_STATUS;
+// 	temp->numTicks=noc*nr->numTicks;
+//     }
     pst();
 }
 void printdecon(deconSys ds){
@@ -382,7 +440,7 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	output.sysId = res.output;
 	offset += res.numByte;
 	output.size -= res.numByte;
-	dsize = (*((int*)buffer)-offset);	
+	dsize = (*((int*)buffer)-offset);		
 	output.data = (unsigned char*)malloc(dsize);
 	while(i < dsize){
 		output.data[i] = *(buffer+offset+i);
@@ -442,6 +500,21 @@ void deleteByMsgId(int messageId){
  }
 
 }
+senderRecord* getRecordByMsgId(int messageId){
+  	senderRecord *prev,*t,*output=NULL;
+	t = senderTable;
+ 	prev = t;
+ 	t = t->next;
+	while(t != senderTable && output==NULL){
+	 if(t->messageId == messageId){
+		 output = t;
+	 }
+	 prev = t;
+	 t = t->next;
+ 	}
+	return output;
+}
+
 char doesExistMsgId(int messageId,char type){
   char output = 0;
   senderRecord* prev,*t;
@@ -501,7 +574,7 @@ i+=1;
 
   return createRecord();
 }
-char doesExistbyTo(short int from,char type){
+char doesExistbyTo(short int from, char type){
   senderRecord* t = senderTable,*prev;
   char output = 0;
   prev = t;
@@ -516,37 +589,71 @@ char doesExistbyTo(short int from,char type){
     return output;
 }
 void checkStateAndProcess(){
- 	senderRecord* prev,*t;
-	t = senderTable;
-	prev = t;
-	t = t->next;
-	while(t != senderTable){
-			// free the space in both if else
-		  if((0 == t->numTicks) && (0 == t->status)){
-			// mark the target system dead
-	 		prev->next = t->next;
-	 	   }else if((0==t->numTicks)){
-        		createSysMessage(t->type,(t->status-1),t->nr,t->message,strlen(t->message),t->messageId);
-	 		prev->next = t->next;
-               	   }
-	  prev = t;
-	  t = t->next;
-    }
+ 	senderRecord* prev,*t,*p;
+ 	t = senderTable;
+ 	prev = t;
+ 	t = t->next;
+ 	while(t != senderTable){
+ 			// free the space in both if else
+ 		  if((0 == t->numTicks) && (0 == t->status)){
+ 			// mark the target system dead
+ 	 		prev->next = t->next;
+ 	 	   }else if((0==t->numTicks)){
+         		createSysMessage(t->type,(t->status-1),t->nr,t->message,t->dsize,t->messageId);
+ 	 		prev->next = t->next;
+             	   }
+ 	  prev = t;
+ 	  t = t->next;
+     }
 
-	recieverRecord* rprev,*rt;
-	rt = recieverTable;
-	rprev = rt;
-	rt = rt->next;
-	while(rt != recieverTable){
-			// free the space in both if else
-		  if((0 == rt->numTicks) && (0 == rt->status)){
-			// mark the target system dead
-	 		rprev->next = rt->next;
-	 	   }else if((0==rt->numTicks)){
-        		createSysMessage(rt->type,(rt->status-1),rt->nr,rt->message,strlen(rt->message),rt->messageId);
-	 		rprev->next = rt->next;
-               	   }
-	  rprev = rt;
-	  rt = rt->next;
+//assuming numticks = noc*numticks 
+//check numticks if 0 
+//no then continue
+// yes then check bit vector all 1 
+//if yes then assemble() and delete record & send "OK"
+//no then check status 
+//if 0 then delete record & may be mark down 
+//if non-zero then decrement status, send retry msg with bit vector, set timer(count(0,bv)*numticks)
+
+//  	recieverRecord* rprev,*rt;
+//  	rt = recieverTable;
+//  	rprev = rt;
+//  	rt = rt->next;
+// 	char c;
+//  	while(rt != recieverTable){
+//  			// free the space in both if else
+//  		  if((0 == rt->numTicks) && (0 == rt->status)){
+//  			// mark the target system dead
+//  	 		rprev->next = rt->next;
+//  	 	   }else if((0==rt->numTicks)){
+// 			if((c=bitVectorContainsZero(rt->bv,rt->bvc))!=0){
+// 				printf("NAY--ALAY\n");
+//          			createSysMessage((rt->type)+1,(rt->status-1),getRecordByPort(rt->from),rt->bv,ceil(rt->bvc/8.0),rt->messageId);
+// 				rt->numTicks = ((c+1)*DEFAULT_TICKS);
+// 				rt->status--;
+// 			} else{
+// 				//assemble();
+// 				printf("ALAY\n");
+//  	 			rprev->next = rt->next;
+// 			}
+//                	   }
+//  	  rprev = rt;
+//  	  rt = rt->next;
+//  	}
+}
+char bitVectorContainsZero(unsigned char* bv, char bvc){
+	char i = 0,output=0;
+	while(i < bvc){
+		if((bv[i/8]&mask(i%8)) == 0) output++;
+		i+=1;
 	}
+	return output;
+}
+char bitCountToIndex(char index,unsigned char* bv, char bvc){
+	char i = 0,output=0;
+	while(i < bvc && output <= index){
+		if((bv[i/8]&mask(i%8)) == 0) output++;
+		i+=1;
+	}
+	return i-1;
 }

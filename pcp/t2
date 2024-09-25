@@ -1,0 +1,173 @@
+#include "ecdc.h"
+#include "brainutil.h"
+#include <time.h>
+
+// TODO  Difference computation routine
+// TODO  nRecord Table sharing routine 
+// TODO  Reciever end's timers need to be written
+// TODO  Assemble Everything in case 
+
+
+static long sysTime = 0;
+sysInfo *sysinfo;
+senderRecord* senderTable;
+senderRecord *temp,*pointer;
+recieverRecord* recieverTable;
+recieverRecord *rtemp,*rpointer;
+int numRecords=0;
+char timeFlag = 1;
+char *bf;
+FILE *f, *be, *uio;
+char *intfiles[4];
+int enew = 0, eold =0;
+
+
+void sendToFile(char *fname, char *buf, int size) {
+  f = fopen(fname, "ab");
+  fwrite(buf, 1, size, f);
+  fclose(f);
+}
+
+void sys_tick() {
+  while (timeFlag) {
+    senderRecord* temp = senderTable,*prev;
+    prev = temp;
+    temp = temp->next;
+    while(temp != senderTable){
+	 if(temp->numTicks != 0){
+             temp->numTicks--;
+ 	 }
+    	prev = temp;
+    	temp = temp->next;
+     }
+    
+    sysTime = (sysTime % 0xFFFFFFFFFFFFFFFF) + 1;
+    usleep(1000);
+  }
+}
+
+void printRecordTable(){
+	int i=0;
+        printf("---------------------------------\n");
+   	printf("  ID\t\tPort\tBuffer\n");
+	while(i<sysinfo->numRecords)
+	{
+		printf("%s\t\t%d\t%d\n",sysinfo->recordTable[i].sid,sysinfo->recordTable[i].port,sysinfo->recordTable[i].buffer);i++;
+	}
+   printf("---------------------------------\n");
+}
+
+void prt(){
+   recieverRecord* temp = recieverTable;
+   recieverRecord *prev;
+   prev = temp;
+   temp = temp->next;
+   printf("--------------Reciever-----------------\n");
+   printf("  mesgID\tType\tFrom\tVector\n");
+   while((temp != recieverTable)){
+           printf("  %d\t\t%d\t%d\t%b\n",temp->messageId,temp->type,temp->from,*(temp->bv));
+ 	  prev = temp;
+ 	  temp = temp->next;
+}
+   printf("---------------------------------------\n");
+}
+
+void pst(){
+   senderRecord* temp = senderTable;
+   senderRecord *prev;
+   prev = temp;
+   temp = temp->next;
+   printf("-------------Sender--------------\n");
+   printf("  mesgID\tType\tTo\n");
+   while((temp != senderTable)){
+           printf("  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid);
+ 	  prev = temp;
+ 	  temp = temp->next;
+}
+   printf("---------------------------------\n");
+}
+
+int main(int argc, char **argv) {
+     time_t t;
+     srand((unsigned)time(&t));
+
+  // load config
+    deconSys iMsg;
+    if (argc == 2) {
+    FILE *config = fopen(argv[1], "r");
+    int linesRead = 0;
+    int i = 0, j = 0, recordIt = 0,cs;
+    char *line;
+    pthread_t tmp;
+    sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
+    pthread_create(&tmp, NULL, (void *)&sys_tick, NULL);
+    pthread_detach(tmp);
+    if (NULL == config) {
+      printf("File didn't open \n");
+    } else {
+      line = (char *)malloc(20);
+      while ((line[j] = fgetc(config)) != EOF) {
+        if (line[j] == '\n') {
+          line[j] = '\0';
+          linesRead += 1;
+          if (1 == linesRead) {
+            sysinfo->systemId = line;
+          } else if (2 == linesRead) {
+            sysinfo->port = (short int)atoi(line);
+          } else if (3 == linesRead) {
+            sysinfo->sysBuffer = atoi(line);
+          } else if (4 <= linesRead && 7 >= linesRead) {
+            intfiles[linesRead - 4] = line;
+          } else if (8 == linesRead) {
+            sysinfo->numRecords = atoi(line);
+            sysinfo->recordTable =
+                (nRecord *)malloc(sysinfo->numRecords * sizeof(nRecord));
+          } else {
+            if (sysinfo->numRecords > recordIt) {
+
+              if (0 != (linesRead % 2)) {
+                sysinfo->recordTable[recordIt].sid = line;
+              } else {
+                sysinfo->recordTable[recordIt].port = (short int)atoi(line);
+                sysinfo->recordTable[recordIt].buffer = DEFAULT_BUFFER;
+                sysinfo->recordTable[recordIt].status = '?';
+                sysinfo->recordTable[recordIt].numTicks = DEFAULT_TICKS;
+                recordIt += 1;
+              }
+            }
+          }
+	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL,0,0);
+	recieverTable = createRecieverRecord(-1,0,-1,0,-1,NULL,0);
+	senderTable->next = senderTable;
+	recieverTable->next = recieverTable;
+	pointer = senderTable;
+	rpointer = recieverTable;
+	    bf = (char*)malloc(sysinfo->sysBuffer + sizeof(short int));
+  	    clm(bf);
+  // lines gone 	
+          i += 1;
+          j = 0;
+          line = (char *)malloc(20);
+        } else {
+          j += 1;
+        }
+      }
+
+      while (((be = fopen(intfiles[0], "rb")) == NULL) ||
+             ((uio = fopen(intfiles[2], "rb")) == NULL))
+        continue;
+      fseek(be, 0, SEEK_END);
+      fseek(uio, 0, SEEK_END);
+      int unew = ftell(uio), uold = ftell(uio);
+      enew = ftell(be);
+      eold = ftell(be);
+      int dsize = 0,offset=0;
+      result res;
+      int sender;
+      bufferExchng(); 
+    }
+  } else {
+    printf("Too few arguments brain: \n");
+  }
+  return 0;
+}
