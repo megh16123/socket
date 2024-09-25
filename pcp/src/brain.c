@@ -42,7 +42,7 @@ void sys_tick() {
     	temp = temp->next;
      }
     
-  /*  recieverRecord* rtemp = recieverTable,*rprev;
+  recieverRecord* rtemp = recieverTable,*rprev;
     rprev = rtemp;
     rtemp = rtemp->next;
     while(rtemp != recieverTable){
@@ -51,11 +51,11 @@ void sys_tick() {
  	 }
     	rprev = rtemp;
     	rtemp = rtemp->next;
-     }*/
+     }
 
     sysTime = (sysTime % 0xFFFFFFFFFFFFFFFF) + 1;
     usleep(900);
-  }
+   }  
 }
 
 void printRecordTable(){
@@ -187,7 +187,6 @@ int main(int argc, char **argv) {
       while (1) {
         iMsg = getFromEar();
         if(iMsg.type != -1){
-		printf("haha:%d\n",iMsg.type);
             switch(iMsg.type){
                 case 0:
 		    printf("CASE 0\n");
@@ -196,7 +195,8 @@ int main(int argc, char **argv) {
  		    i=0;
  		    while(i<5120)ata[i++]='j';ata[i]='\0';
                      createSysMessage(5,DEFAULT_STATUS,0,ata,5120,iMsg.messageId+1);
-                    deleteByMsgId(iMsg.messageId);
+                     deleteByMsgId(iMsg.messageId);
+		     deleteByMsgId(iMsg.messageId+1);
                     break;
                 case 1:
 		    printf("CASE 1\n");
@@ -213,7 +213,6 @@ int main(int argc, char **argv) {
                         if(1 == doesExistbyTo(iMsg.from,2)){
 		    	    printf("iCASE 2 : %s \n",sysinfo->systemId);
                         }else{
-		    	    printf("eCASE 2 : %s \n",sysinfo->systemId);
                             res = decoder(iMsg.data);
                             offset = res.numByte;
                             sender = getRecordBySid(res.output);
@@ -293,9 +292,9 @@ int main(int argc, char **argv) {
 			//createSysMessage	            
 	}
 
-       printRecordTable();
+//        printRecordTable();
       }else{}
-        //checkStateAndProcess();
+        checkStateAndProcess();
       }
     }
   } else {
@@ -323,7 +322,7 @@ int generatemsgid(){
 }
 void createSysMessage(char type,char status,int index, unsigned char *data,int dsize,int mId) {
     int offset = 0, i = 0, size,cs=0,rem;
-    char  noc=0,ic=0;
+    char  noc=1,ic=0;
     result res,messageId;
     messageId = encoder((unsigned char*)&mId,sizeof(int));
     nRecord* nr = &sysinfo->recordTable[index];
@@ -360,7 +359,6 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
       		*(bf + offset + i) = data[i];
       		i += 1;
     	}		
-    	printf("BUF : %d\n",nr->buffer);
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
     } else{
 	cs = nr->buffer - (16 + res.numByte);	
@@ -392,17 +390,15 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
 	}
     }
- 	printf("befo:%d\n",dsize);
-    	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
-//     if(!doesExistMsgId(mId,type) ){
-//     	addToSenderTable(type,status,index,(nr->numTicks)*noc,mId,data,noc);
-// 	printf(" CS : %d NOC : %d\n",cs,noc);	
-//     }else{
-// 	senderRecord* temp = getRecordByMsgId(mId);
-// 	temp->status=DEFAULT_STATUS;
-// 	temp->numTicks=noc*nr->numTicks;
-//     }
-    pst();
+     //	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+     if(!doesExistMsgId(mId,type)){
+     	addToSenderTable(type,status,index,(nr->numTicks)*noc,mId,data,noc,dsize);
+     }else{
+ 	senderRecord* temp = getRecordByMsgId(mId);
+ 	temp->status=DEFAULT_STATUS;
+ 	temp->numTicks=noc*nr->numTicks;
+     }
+	pst();
 }
 void printdecon(deconSys ds){
 	result res;
@@ -493,6 +489,7 @@ void deleteByMsgId(int messageId){
 	while(t != senderTable){
 	 if(t->messageId == messageId){
 		 prev->next = t->next;
+		 if(t->next==senderTable)pointer=prev;
 		 // free the space 
 	 }
 	 prev = t;
@@ -598,9 +595,11 @@ void checkStateAndProcess(){
  		  if((0 == t->numTicks) && (0 == t->status)){
  			// mark the target system dead
  	 		prev->next = t->next;
+		 	if(t->next==senderTable)pointer=prev;
  	 	   }else if((0==t->numTicks)){
          		createSysMessage(t->type,(t->status-1),t->nr,t->message,t->dsize,t->messageId);
  	 		prev->next = t->next;
+		 	if(t->next==senderTable)pointer=prev;
              	   }
  	  prev = t;
  	  t = t->next;
@@ -615,31 +614,33 @@ void checkStateAndProcess(){
 //if 0 then delete record & may be mark down 
 //if non-zero then decrement status, send retry msg with bit vector, set timer(count(0,bv)*numticks)
 
-//  	recieverRecord* rprev,*rt;
-//  	rt = recieverTable;
-//  	rprev = rt;
-//  	rt = rt->next;
-// 	char c;
-//  	while(rt != recieverTable){
-//  			// free the space in both if else
-//  		  if((0 == rt->numTicks) && (0 == rt->status)){
-//  			// mark the target system dead
-//  	 		rprev->next = rt->next;
-//  	 	   }else if((0==rt->numTicks)){
-// 			if((c=bitVectorContainsZero(rt->bv,rt->bvc))!=0){
-// 				printf("NAY--ALAY\n");
-//          			createSysMessage((rt->type)+1,(rt->status-1),getRecordByPort(rt->from),rt->bv,ceil(rt->bvc/8.0),rt->messageId);
-// 				rt->numTicks = ((c+1)*DEFAULT_TICKS);
-// 				rt->status--;
-// 			} else{
-// 				//assemble();
-// 				printf("ALAY\n");
-//  	 			rprev->next = rt->next;
-// 			}
-//                	   }
-//  	  rprev = rt;
-//  	  rt = rt->next;
-//  	}
+  	recieverRecord* rprev,*rt;
+  	rt = recieverTable;
+  	rprev = rt;
+  	rt = rt->next;
+ 	char c;
+  	while(rt != recieverTable){
+  			// free the space in both if else
+  		  if((0 == rt->numTicks) && (0 == rt->status)){
+  			// mark the target system dead
+  	 		rprev->next = rt->next;
+		 	if(rt->next==recieverTable)rpointer=rprev;
+  	 	   }else if((0==rt->numTicks)){
+ 			if((c=bitVectorContainsZero(rt->bv,rt->bvc))!=0){
+ 				printf("NAY--ALAY\n");
+          			createSysMessage((rt->type)+1,DEFAULT_STATUS,getRecordByPort(rt->from),rt->bv,ceil(rt->bvc/8.0),rt->messageId);
+ 				rt->numTicks = ((c+1)*DEFAULT_TICKS);
+ 				rt->status--;
+ 			} else{
+ 				//assemble();
+ 				printf("ALAY\n");
+  	 			rprev->next = rt->next;
+		 		if(rt->next==recieverTable)rpointer=rprev;
+ 			}
+                	   }
+  	  rprev = rt;
+  	  rt = rt->next;
+  	}
 }
 char bitVectorContainsZero(unsigned char* bv, char bvc){
 	char i = 0,output=0;
