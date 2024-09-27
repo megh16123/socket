@@ -44,8 +44,7 @@ int main(int argc, char **argv) {
     len = sizeof(senderAddr);
     while (1) {
     memset(buffer, 0, BUFLEN);
-      n = recvfrom(sockfd, buffer, BUFLEN - (sizeof(short int)), MSG_WAITALL, (struct sockaddr *)&senderAddr, &len);
-      buffer[n] = '\0';
+      n = recvfrom(sockfd, buffer, BUFLEN, MSG_WAITALL, (struct sockaddr *)&senderAddr, &len);
       sendTobrain(f, buffer);
     }
     fclose(f);

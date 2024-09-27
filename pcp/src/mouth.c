@@ -10,12 +10,13 @@
 static int BUFLEN;
 
 #define clm(x) (memset(x, 0, sizeof(x)))
-void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr, char *messageStr, const short int port) {
+void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr,unsigned char *messageStr, const short int port) {
   (*receiverAddr).sin_family = AF_INET;
   (*receiverAddr).sin_port = htons(port);
   (*receiverAddr).sin_addr.s_addr = INADDR_ANY;
-  sendto(*sockfd, (const char *)messageStr, BUFLEN - sizeof(short int), 0, (const struct sockaddr *)receiverAddr, sizeof(struct sockaddr_in));
+  sendto(*sockfd, (const unsigned char *)messageStr, BUFLEN-sizeof(short int), 0, (const struct sockaddr *)receiverAddr, sizeof(struct sockaddr_in));
 }
+
 
 int main(int argc, char **argv) {
 
@@ -23,7 +24,7 @@ int main(int argc, char **argv) {
     BUFLEN = atoi(argv[2]) + sizeof(short int);
     FILE *f;
     int sockfd;
-    char buf[BUFLEN];
+    unsigned char buf[BUFLEN];
     int old = 0;
     int dsize = 0;
     int new = 0;
@@ -41,13 +42,18 @@ int main(int argc, char **argv) {
     while (1) {
       fseek(f, 0, SEEK_END);
       new = ftell(f);
-      dsize = new - old;
-//       printf("new : %d\told : %d\n",new,old);
+      dsize = new - old;	
       if (dsize > 0 && 0 == (dsize % BUFLEN)) {
-          fseek(f, -dsize, SEEK_END);
+      	if((dsize/BUFLEN) > 1) dsize = BUFLEN;
+// 	printf("\ndsize: %d\n",dsize);
+// 	printf("new: %d, old: %d\n",new,old);
+          fseek(f, old, SEEK_SET);
           dsize = dsize / BUFLEN;
           clm(buf);
           fread(buf, BUFLEN, 1, f);
+//  	  printf("---Mouth ----------\n");
+//   	  printf("MMDTA: %s\n",buf+23+2);
+// 	  printf("index: %d\n",*(buf+24));
           sendmessage(&sockfd, &receiverAddr, buf + sizeof(short int), *((short int *)buf));
           old +=  BUFLEN;
       } else {
