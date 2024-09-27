@@ -192,10 +192,11 @@ int main(int argc, char **argv) {
                 case 0:
 		    printf("CASE 0\n");
                     sender = getRecordByPort(iMsg.from);
+		    printf("PORTBY : %d\n",sender);
  	            char *ata=(char*)malloc(5102*sizeof(char));
  		    i=0;
  		    while(i<5101)ata[i++]='j';ata[i]='\0';
-                     createSysMessage(5,DEFAULT_STATUS,0,ata,5101,iMsg.messageId+1);
+                     createSysMessage(5,DEFAULT_STATUS,sender,ata,5101,iMsg.messageId+1);
                      deleteByMsgId(iMsg.messageId);
                     break;
                 case 1:
@@ -678,7 +679,7 @@ void checkStateAndProcess(){
  			} else{
  				//assemble();
  				printf("ALAY\n");
-				printf("Data: %s\n",rt->data);
+				printf("Data: %s\t%s\n",rt->data,sysinfo->systemId);
           			createSysMessage(90,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
 				deleteByMsgId(rt->messageId);				
   	 			rprev->next = rt->next;
