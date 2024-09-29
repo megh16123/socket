@@ -16,7 +16,7 @@ senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int 
 	return output;
 }
 
-recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc){
+recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc,int dsize){
 	recieverRecord* output = (recieverRecord*)malloc(sizeof(recieverRecord));
 	output->type = type;
 	output->status = status;
@@ -26,7 +26,7 @@ recieverRecord* createRecieverRecord(char type,char status,short int from,long n
 	output->numTicks = numTicks;
 	output->messageId = messageId;
 	output->data = message;
-	output->dsize=0;
+	output->dsize=dsize;
 	output->next = NULL;
 	return output;
 }

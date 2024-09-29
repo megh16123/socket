@@ -13,8 +13,8 @@
 	pointer = pointer->next;\
 	} 
 
-#define addToRecieverTable(a,b,c,d,e,f,g) {  rtemp = rpointer->next; \
-	rpointer->next = createRecieverRecord(a,b,c,d,e,f,g);\
+#define addToRecieverTable(a,b,c,d,e,f,g,h) {  rtemp = rpointer->next; \
+	rpointer->next = createRecieverRecord(a,b,c,d,e,f,g,h);\
 	rpointer->next->next = rtemp;\
 	rpointer = rpointer->next;\
 	} 
@@ -78,9 +78,9 @@ typedef struct {
 
 senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc,int dsize);
 
-recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc);
+recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc,int dsize);
 
-void createSysMessage(char,char, int, unsigned char*, int,int);
+void narad(char,char, int, unsigned char*, int,int);
 void printdecon(deconSys);
 deconSys convertSysMessage(char*);
 void bufferExchng();
@@ -99,3 +99,4 @@ char bitCountToIndex(char index,unsigned char* bv, char bvc);
 senderRecord* getRecordByMsgId(int messageId);
 void rcheckStateAndProcess();
 void acces(unsigned char *out,int numbt);
+void processCompleted();
