@@ -22,10 +22,9 @@ char *intfiles[4];
 int enew = 0, eold =0;
 
 
-void acces(unsigned char *out,int numbt);
 
 void sendToFile(char *fname, char *buf, int size) {
-f = fopen(fname, "ab");
+  f = fopen(fname, "ab");
   fwrite(buf, 1, size, f);
   fclose(f);
 }
@@ -190,13 +189,13 @@ int main(int argc, char **argv) {
         if(iMsg.type != -1){
             switch(iMsg.type){
                 case 0:
-		    printf("CASE 0\n");
-                  //sender = getRecordByPort(iMsg.from);
- 	          //char *ata=(char*)malloc(5102*sizeof(char));
- 		  //i=0;
- 		  //while(i<5101)ata[i++]='j';ata[i]='\0';
-                  //createSysMessage(5,DEFAULT_STATUS,sender,ata,5101,iMsg.messageId+1);
-                     deleteByMsgId(iMsg.messageId);
+		  printf("CASE 0\n");
+                  sender = getRecordByPort(iMsg.from);
+ 	          char *ata=(char*)malloc(5102*sizeof(char));
+ 		  i=0;
+ 		  while(i<5101)ata[i++]='j';ata[i]='\0';
+                  	createSysMessage(5,DEFAULT_STATUS,sender,ata,5101,iMsg.messageId+1);
+                    	 deleteByMsgId(iMsg.messageId);
                     break;
                 case 1:
 		    printf("CASE 1\n");
@@ -232,6 +231,7 @@ int main(int argc, char **argv) {
 		recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,5);
 		sender = getRecordByPort(iMsg.from);
 		cs = iMsg.size - 2; 
+		rec->dsize += cs;
  		printf("index: %d cs: %d size : %d\n",*(iMsg.data+1),cs,iMsg.size);
 		if(NULL != rec){
 			i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
@@ -307,6 +307,7 @@ int main(int argc, char **argv) {
 
 //        printRecordTable();
       }else{}
+        rcheckStateAndProcess();
         checkStateAndProcess();
       }
     }
@@ -331,9 +332,102 @@ void clear(char *str)
 
 int generatemsgid(){
 	int id=1000+(rand())%9000;
-    return id;
+    	return id;
 }
+
+int writeMetaData(char type, short int from, nRecord* nr, result messageId, result res){
+	int offset=0,i;
+	clm(bf);
+	*((short int *)bf) = nr->port;
+        offset += sizeof(short int);
+        offset += sizeof(int);
+        *(bf + offset) = type;
+        offset += sizeof(char);
+        *((short int *)(bf + offset)) = nr->port;
+        offset += sizeof(short int);
+        *((short int *)(bf + offset)) = from;
+        offset += sizeof(short int);
+        i = 0;
+        while(i < messageId.numByte){
+          *(bf + offset + i) = messageId.output[i];
+          i += 1;
+        }
+      	offset += messageId.numByte;
+      	i = 0;
+      	while (i < res.numByte) {
+        	*(bf + offset + i) = res.output[i];
+        	i += 1;
+      	}
+      	offset += res.numByte;
+	return offset;
+}
+
+void dataWriter(int offset, char *data, int dsize){
+	int i = 0;
+	while (i < dsize) {
+		*(bf + offset + i) = data[i];
+		i += 1;
+	}
+}
+
 void createSysMessage(char type,char status,int index, unsigned char *data,int dsize,int mId) {
+    int offset = 0, i = 0, size,cs=0,rem;
+    char  noc=1,ic=0;
+    result res,messageId;
+    messageId = encoder((unsigned char*)&mId,sizeof(int));
+    nRecord* nr = &sysinfo->recordTable[index];
+    res = encoder(nr->sid, strlen(nr->sid));
+    size = sizeof(int) + sizeof(short int) * 2 + res.numByte + sizeof(char)+messageId.numByte;
+    clm(bf);
+    if (nr->buffer >= size+dsize) {
+	offset = writeMetaData(type,sysinfo->port,nr,messageId,res);
+	size += dsize;
+    	*((int *)(bf + sizeof(short int))) = size;
+	dataWriter(offset,data,dsize);
+    	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+    }else{
+	dsize += 1;
+	// append type
+	data = (unsigned char*)realloc(data,sizeof(unsigned char)*dsize);	
+	data[dsize-1] = type;	
+	offset = writeMetaData(5,sysinfo->port,nr,messageId,res);
+	cs = nr->buffer - (16 + res.numByte);	
+	// 1 for type
+	noc = ceil(dsize/(double)cs);
+	*(bf+offset) = noc;
+	offset += 1;
+	ic=0;
+	while(ic < noc){
+	 clm(bf+offset);
+	 *(bf+offset) = ic;
+	 if(ic == (noc-1)){
+		if(dsize%cs==0)rem=cs;
+		else rem=dsize%cs;
+		printf("Rem: %d, size: %d\n",rem,size);
+    		*((int *)(bf + sizeof(short int))) = (size+rem+2);
+		dataWriter(offset+1,(data+(((int)ic)*cs)),rem);
+	} else{ 
+    		*((int *)(bf + sizeof(short int))) = (size+cs+2);
+		printf("CS: %d, size: %d\n",cs,size);
+		dataWriter(offset+1,(data+(((int)ic)*cs)),cs);
+	}		
+	ic+=1;
+    	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+	}
+	dsize -= 1;
+    }
+     if(!doesExistMsgId(mId,type)){
+     	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+     }else{
+ 	senderRecord* temp = getRecordByMsgId(mId);
+ 	temp->status=DEFAULT_STATUS;
+ 	temp->numTicks=noc*nr->numTicks;
+     }
+	pst();
+
+}
+
+void csm(char type,char status,int index, unsigned char *data,int dsize,int mId) {
     int offset = 0, i = 0, size,cs=0,rem;
     char  noc=1,ic=0;
     result res,messageId;
@@ -368,14 +462,12 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
 	size += dsize;
     	*((int *)(bf + sizeof(short int))) = size;
     	i = 0;
-	
-   	 while (i < dsize) {
+   	while (i < dsize) {
       		*(bf + offset + i) = data[i];
       		i += 1;
     	}		
-// 	if(type==6){printf("createSys bv : ");acces(bf+offset,6);}
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
-    } else{
+    }else{
 	cs = nr->buffer - (16 + res.numByte);	
 	noc = ceil(dsize/(double)cs);
 	i = 0;
@@ -410,7 +502,6 @@ void createSysMessage(char type,char status,int index, unsigned char *data,int d
     	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
 	}
     }
-     //	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
      if(!doesExistMsgId(mId,type)){
      	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
      }else{
@@ -436,7 +527,6 @@ deconSys output;
 result res;
 int offset = 0,i=0,dsize=0;
 output.size = *((int*)buffer);
-printf("size: %d\n",output.size);
 if(*((int*)buffer) <= sysinfo->sysBuffer){
 	offset += sizeof(int);
 	output.size -= sizeof(int);
@@ -459,13 +549,10 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	output.size -= res.numByte;
 	dsize = (*((int*)buffer)-offset);		
 	output.data = (unsigned char*)malloc(dsize);
-// 	printf("********************\n");
 	while(i < dsize){
 		output.data[i] = *(buffer+offset+i);
-// 		printf("%d ",output.data[i]);
 		i += 1;
 	}
-// 	printf("\n************************&*****\n");
 }/*else{}*/
 return output;
 }
@@ -626,28 +713,6 @@ char doesExistbyTo(short int from, char type){
 	}
     return output;
 }
-void checkStateAndProcess(){
-  	senderRecord* prev,*t,*p;
-  	t = senderTable;
-  	prev = t;
-  	t = t->next;
-  	while(t != senderTable){
-  		// free the space in both if else
-  		if(5 != t->type){
-  		 if((0 == t->numTicks) && (0 == t->status)){
-  			// mark the target system dead
-  	 		prev->next = t->next;
- 		 	if(t->next==senderTable)pointer=prev;
-  	 	   }else if((0==t->numTicks)){
-          		createSysMessage(t->type,(t->status-1),t->nr,t->message,t->dsize,t->messageId);
-  	 		prev->next = t->next;
- 		 	if(t->next==senderTable)pointer=prev;
-              	   }
-  		}
-  	  	prev = t;
-  	  	t = t->next;
-      	}
-
 /***************************************
  * assuming numticks = noc*numticks 
  * check numticks if 0 
@@ -658,6 +723,8 @@ void checkStateAndProcess(){
  * if 0 then delete record & may be mark down 
  * if non-zero then decrement status, send retry msg with bit vector, set timer(count(0,bv)*numticks)
  ***************************************/ 
+void rcheckStateAndProcess(){
+
   	recieverRecord* rprev,*rt;
   	rt = recieverTable;
   	rprev = rt;
@@ -679,6 +746,8 @@ void checkStateAndProcess(){
  				//assemble();
  				printf("ALAY\n");
 				printf("Data: %s\t\n",rt->data);
+				printf("Dsize: %d\t\n",rt->dsize);
+				printf("type: %d\t\n",*(rt->data+(rt->dsize-1)));
           			createSysMessage(0,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
 				deleteByMsgId(rt->messageId);				
   	 			rprev->next = rt->next;
@@ -689,6 +758,28 @@ void checkStateAndProcess(){
   	  		rt = rt->next;
   	}
 }
+void checkStateAndProcess(){
+  	senderRecord* prev,*t,*p;
+  	t = senderTable;
+  	prev = t;
+  	t = t->next;
+  	while(t != senderTable){
+  		// free the space in both if else
+  		//if(5 != t->type){
+  		 if((0 == t->numTicks) && (0 == t->status)){
+  			// mark the target system dead
+  	 		prev->next = t->next;
+ 		 	if(t->next==senderTable)pointer=prev;
+  	 	   }else if((0==t->numTicks)){
+          		createSysMessage(t->type,(t->status-1),t->nr,t->message,t->dsize,t->messageId);
+  	 		prev->next = t->next;
+ 		 	if(t->next==senderTable)pointer=prev;
+              	   }
+  		//}
+  	  	prev = t;
+  	  	t = t->next;
+      	}
+}
 char bitVectorContainsZero(unsigned char* bv, char bvc){
 	char i = 0,output=0;
 	while(i < bvc){
@@ -697,7 +788,6 @@ char bitVectorContainsZero(unsigned char* bv, char bvc){
 	}
 	return output;
 }
-//100000 1
 char bitCountToIndex(char index,unsigned char* bv, char bvc){
 	char i = 0,output=0,counter = 0,flg=0;
 	while(i < bvc &&  counter <= index){

@@ -26,6 +26,7 @@ recieverRecord* createRecieverRecord(char type,char status,short int from,long n
 	output->numTicks = numTicks;
 	output->messageId = messageId;
 	output->data = message;
+	output->dsize=0;
 	output->next = NULL;
 	return output;
 }

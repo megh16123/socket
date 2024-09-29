@@ -58,6 +58,7 @@ struct recieverR{
  short int from;
  long numTicks;	
  int messageId;
+ int dsize;
  char* data;
  char bvc;
  unsigned char* bv;
@@ -96,3 +97,5 @@ void checkStateAndProcess();
 char bitVectorContainsZero(unsigned char* bv, char bvc);
 char bitCountToIndex(char index,unsigned char* bv, char bvc);
 senderRecord* getRecordByMsgId(int messageId);
+void rcheckStateAndProcess();
+void acces(unsigned char *out,int numbt);
