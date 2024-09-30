@@ -100,4 +100,4 @@ senderRecord* getRecordByMsgId(int messageId);
 void rcheckStateAndProcess();
 void acces(unsigned char *out,int numbt);
 void processCompleted();
-char searchRecordByPort(int);
+int searchRecordByPort(int);

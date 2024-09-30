@@ -15,11 +15,12 @@ senderRecord *temp,*pointer;
 recieverRecord* recieverTable;
 recieverRecord *rtemp,*rpointer;
 int numRecords=0;
-char timeFlag = 1;
+char timeFlag = 1,flg=0;
 char *bf;
 FILE *f, *be, *uio;
-char *intfiles[4];
-int enew = 0, eold =0;
+char *intfiles[4],*sendBv,*dat;
+int tsize=0,enew = 0, eold =0,sendBvc = 0,i,j,wp;
+result res,bres;
 
 
 
@@ -60,8 +61,8 @@ recieverRecord* rtemp = recieverTable,*rprev;
 }
 
 void printRecordTable(){
-	int i=0;
-        printf("---------------------------------\n");
+	i=0;
+        printf("--------------Record-------------\n");
    	printf("  ID\t\tPort\tBuffer\n");
 	while(i<(sysinfo->numRecords)){
 		printf("%s\t\t%d\t%d\n",(sysinfo->recordTable[i]).sid,(sysinfo->recordTable[i]).port,(sysinfo->recordTable[i]).buffer);
@@ -117,11 +118,10 @@ int main(int argc, char **argv) {
     if (argc == 2) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
-    int i = 0, j = 0, recordIt = 0,cs;
+    i = 0; j = 0;
+    int recordIt = 0,cs;
     unsigned char* dat;
-    int wp,tsize;
-    result res,bres;
-    char *line,flg=0;
+    char *line;
     pthread_t tmp;
     sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
     if (NULL == config) {
@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
                         if(1 == doesExistbyTo(iMsg.from,2)){
 		    	    printf("iCASE 2 : %s \n",sysinfo->systemId);
                         }else{
-                            res = decoder(iMsg.data);
+		            res = decoder(iMsg.data);
                             offset = res.numByte;
                             sender = getRecordBySid(res.output);
 			    sysinfo->recordTable[sender].sid=res.output;
@@ -256,8 +256,8 @@ int main(int argc, char **argv) {
 			    sysinfo->recordTable[sender].status = 1;
                             sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
                             // send 1	
-                            narad(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);
-                        }
+                            narad(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);          
+              	    }
                     break;
 	case 5:
 		printf("CASE 5 %d from %d\n",iMsg.messageId,iMsg.from);
@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
 					if(i == srec->bvc-1){
 						cs = dsize%cs;
 					}
-					for(int j = 0; j < cs ; j++){
+					for(j = 0; j < cs ; j++){
 						*(data+wp+j) = *((srec->message)+(cs*i)+j);
 					}	
 				//	*(data + wp) = '\0';
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
 			srec->numTicks = 0;
 		break;
 		case 7:
-			printf("I CASE 7  port : %d\n",*((short int*)(iMsg.data+7)));
+			printf("I CASE 7  \n");
 			wp = 0;
 			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
@@ -344,37 +344,62 @@ int main(int argc, char **argv) {
 				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
 				i += 1;
 			}	
-			i = 0;	
-			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			i = 0;
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));	
+			sendBvc=ceil(sysinfo->numRecords/8.0);
+			sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
 			tsize = sysinfo->numRecords;
 			while(wp < iMsg.size){
 				res = decoder(iMsg.data+wp);
 				wp += res.numByte;
-				if(0 == searchRecordByPort(*((short int*)(dat+wp)))&& (*((short int*)(dat+wp))) != sysinfo->port){
-				//send buffer to that port & add to record table
-				sender = getRecordBySid(res.output);
-			    	sysinfo->recordTable[sender].sid=res.output;
-                            	sysinfo->recordTable[sender].port = (*((short int*)(dat+wp)));
-			    	sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
-			    	sysinfo->recordTable[sender].status = 0;
-                            	sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
-        			narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+				i=searchRecordByPort(*((short int*)(iMsg.data+wp)));
+				if(i!=-1){
+					*(sendBv+(i/8)) |=  mask(i%8);
+				}else{
+					if((*((short int*)(iMsg.data+wp))) != sysinfo->port){
+					//send buffer to that port & add to record table
+					sender = getRecordBySid(res.output);
+			    		sysinfo->recordTable[sender].sid=res.output;
+                            		sysinfo->recordTable[sender].port = (*((short int*)(iMsg.data+wp)));
+			    		sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
+			    		sysinfo->recordTable[sender].status = 0;
+                            		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+        				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					}
 				}	
 				wp += sizeof(short int);
 			}
+        		printRecordTable();
 			if(doesExistMsgId(iMsg.messageId,7)){
+                  		sender = getRecordByPort(iMsg.from);
 				deleteByMsgId(iMsg.messageId);
-                        	narad(0,0,sender,0,1,iMsg.messageId);
-			}
-			else{
+				printf("CHECK %d %d\n",sender,iMsg.messageId);
+                        	narad(0,0,sender,"3",1,iMsg.messageId);
+			} else{
 				//send set difference
-				flg = 0;
+				i=0;wp=0;
+				while(i<tsize) {
+					if((*(sendBv+(i/8))&mask(i%8))==0){
+						res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+						j = 0;
+						while(j < res.numByte){
+							*(dat+wp+j) = res.output[j];	
+							j += 1;
+						}
+						wp += res.numByte;
+						*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
+						wp += sizeof(short int);
+					}
+					i++;
+				}
+                  		narad(7,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);	
+				free(sendBv);
 			}
-                  //	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());	
+
+				flg = 0;
 		break;
 	}
 
-//        printRecordTable();
       }else{}
         rcheckStateAndProcess();
 	processCompleted();
@@ -390,7 +415,7 @@ int main(int argc, char **argv) {
 
 
 void clear(char *str) {
-	int i=0;
+	i=0;
 	while(str[i]!='\0')
 	{
 		str[i]=0;
@@ -432,7 +457,7 @@ int writeMetaData(char type, short int from, nRecord* nr, result messageId, resu
 }
 
 void dataWriter(int offset, char *data, int dsize){
-	int i = 0;
+	i = 0;
 	while (i < dsize) {
 		*(bf + offset + i) = data[i];
 		i += 1;
@@ -543,7 +568,7 @@ return output;
 }
 void bufferExchng() {
 	// for all knowns create system msg for buffer sending
-	int i =0;
+	i =0;
 	result res;
   	deconSys imsg;
 	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
@@ -624,12 +649,12 @@ senderRecord* getRecordByMsgId(int messageId){
  	}
 	return output;
 }
-char searchRecordByPort(int port){
-  char output = 0;
-  int i = 0;
-  while(i<sysinfo->numRecords && 0 == output){
+int searchRecordByPort(int port){
+  int output = -1;
+  i = 0;
+  while(i<sysinfo->numRecords && output == -1){
 	if(sysinfo->recordTable[i].port == port){
-		output = 1;
+		output = i;
 	}		
 	i += 1;
   }
@@ -668,7 +693,7 @@ recieverRecord* rdoesExistByMsgId(int messageId,char type) {
 }
 
 int getRecordByPort(short int from){
-  int i = 0;
+  i = 0;
   while(i < sysinfo->numRecords){
     if((sysinfo->recordTable[i]).port == from){
       return i;
@@ -683,7 +708,7 @@ sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sy
 	return ((sysinfo->numRecords)-1);
 }
 int getRecordBySid(char* sid){
-  int i = 0;
+  i = 0;
   while(i < sysinfo->numRecords){
     if(!strcmp((sysinfo->recordTable[i]).sid ,sid)){
       return i;
@@ -724,12 +749,76 @@ void processCompleted(){
   	rprev = rt;
   	rt = rt->next;
  	char c;
+	int sender=0;
   	while(rt != recieverTable){
   			// free the space in both if else
 		if(rt->status == (DEFAULT_STATUS+1)){
 			switch(rt->data[rt->dsize-1]){
 				case 7:
 						
+			printf("E CASE 7  port : %d\n",*((short int*)(rt->data+7)));
+			wp = 0;
+			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
+			*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}	
+			i = 0;
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));	
+			sendBvc=ceil(sysinfo->numRecords/8.0);
+			sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
+			tsize = sysinfo->numRecords;
+			while(wp < rt->dsize-1){
+				res = decoder(rt->data+wp);
+				wp += res.numByte;
+				i=searchRecordByPort(*((short int*)(rt->data+wp)));
+				if(i!=-1){
+					*(sendBv+(i/8)) |=  mask(i%8);
+				}
+				else{
+					if((*((short int*)(rt->data+wp))) != sysinfo->port){
+					//send buffer to that port & add to record table
+					sender = getRecordBySid(res.output);
+			    		sysinfo->recordTable[sender].sid=res.output;
+                            		sysinfo->recordTable[sender].port = (*((short int*)(rt->data+wp)));
+			    		sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
+			    		sysinfo->recordTable[sender].status = 0;
+                            		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+        				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					}
+				}	
+				wp += sizeof(short int);
+			}
+			if(doesExistMsgId(rt->messageId,7)){
+				deleteByMsgId(rt->messageId);
+                        	narad(0,0,sender,0,1,rt->messageId);
+			}
+			else{
+				//send set difference
+				i=0;wp=0;
+				while(i<tsize)
+				{
+					if((*(sendBv+(i/8))&mask(i%8))==0){
+						res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+						j = 0;
+						while(j < res.numByte){
+							*(dat+wp+j) = res.output[j];	
+							j += 1;
+						}
+						wp += res.numByte;
+						*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
+						wp += sizeof(short int);
+					}
+					i++;
+				}
+				flg = 0;
+                  		narad(7,DEFAULT_STATUS,sender,dat,wp,rt->messageId);	
+				free(sendBv);
+				}
 					break;	
 			}	
 		}
@@ -803,7 +892,8 @@ char bitVectorContainsZero(unsigned char* bv, char bvc){
 	return output;
 }
 char bitCountToIndex(char index,unsigned char* bv, char bvc){
-	char i = 0,output=0,counter = 0,flg=0;
+	char i = 0,output=0,counter = 0;
+	flg=0;
 	while(i < bvc &&  counter <= index){
 		if((bv[((int)i)/8] & mask(((int)i)%8)) == 0){
 			if(i == index){
@@ -824,7 +914,7 @@ char bitCountToIndex(char index,unsigned char* bv, char bvc){
 }
 void acces(unsigned char *out,int numbt) {
   int reqbits = numbt;
-  int i = 0;
+  i = 0;
   int bitsDone = 0;
 //   printf("\n");
   while (i < reqbits) {
