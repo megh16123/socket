@@ -219,6 +219,7 @@ int main(int argc, char **argv) {
 				i += 1;
 			}
                   	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());
+                  	//sender = getRecordByPort(iMsg.from);
 		  }
 		  
                	  deleteByMsgId(iMsg.messageId);
@@ -315,7 +316,6 @@ int main(int argc, char **argv) {
 			char* data = (char*) malloc((sizeof(char)*dsize)+1);
 			while(i < srec->bvc){
 				if(((iMsg.data[i/8])&mask(i%8)) == 0){
-					printf("i: %d\n",i);
 					if(i == srec->bvc-1){
 						cs = dsize%cs;
 					}
@@ -370,10 +370,9 @@ int main(int argc, char **argv) {
 				wp += sizeof(short int);
 			}
         		printRecordTable();
+                  	sender = getRecordByPort(iMsg.from);
 			if(doesExistMsgId(iMsg.messageId,7)){
-                  		sender = getRecordByPort(iMsg.from);
 				deleteByMsgId(iMsg.messageId);
-				printf("CHECK %d %d\n",sender,iMsg.messageId);
                         	narad(0,0,sender,"3",1,iMsg.messageId);
 			} else{
 				//send set difference
@@ -394,9 +393,9 @@ int main(int argc, char **argv) {
 				}
                   		narad(7,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);	
 				free(sendBv);
+				flg = 0;
 			}
 
-				flg = 0;
 		break;
 	}
 
@@ -848,9 +847,6 @@ void rcheckStateAndProcess(){
  			} else{
  				//assemble();
  				printf("ALAY\n");
-				printf("Data: %s\t\n",rt->data);
-				printf("Dsize: %d\t\n",rt->dsize);
-				printf("type: %d\t\n",*(rt->data+(rt->dsize-1)));
 				rt->status = DEFAULT_STATUS + 1;
           			narad(0,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
 				deleteByMsgId(rt->messageId);				
