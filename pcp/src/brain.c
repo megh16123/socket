@@ -118,7 +118,10 @@ int main(int argc, char **argv) {
     FILE *config = fopen(argv[1], "r");
     int linesRead = 0;
     int i = 0, j = 0, recordIt = 0,cs;
-    char *line;
+    unsigned char* dat;
+    int wp,tsize;
+    result res,bres;
+    char *line,flg=0;
     pthread_t tmp;
     sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
     if (NULL == config) {
@@ -190,21 +193,51 @@ int main(int argc, char **argv) {
             switch(iMsg.type){
                 case 0:
 		  printf("CASE 0\n");
-                  sender = getRecordByPort(iMsg.from);
- 	          char *ata=(char*)malloc(5102*sizeof(char));
- 		  i=0;
- 		  while(i<5101)ata[i++]='j';ata[i]='\0';
-                  	narad(50,DEFAULT_STATUS,sender,ata,5101,iMsg.messageId+1);
-                    	 deleteByMsgId(iMsg.messageId);
+		  if(7 == *(iMsg.data)){
+			// send peer table
+                  	sender = getRecordByPort(iMsg.from);
+			// Create Peer Table 
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}	
+			i = 0;	
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			wp = 0;
+			while(i < sysinfo->numRecords){
+				res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+				j = 0;
+				while(j < res.numByte){
+					*(dat+wp+j) = res.output[j];	
+					j += 1;
+				}
+				wp += res.numByte;
+				*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
+				wp += sizeof(short int);
+				i += 1;
+			}
+                  	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());
+		  }
+		  
+               	  deleteByMsgId(iMsg.messageId);
+
+		  
                     break;
                 case 1:
 		    printf("CASE 1\n");
                     if(1 == doesExistMsgId(iMsg.messageId,2)){
                         sender = getRecordByPort(iMsg.from);
                         sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
-                        // s/end ok
                         deleteByMsgId(iMsg.messageId);
-                        narad(0,0,sender,"OK",2,iMsg.messageId);
+			if(0 == flg){
+				flg = 7;
+				narad(0,0,sender,(unsigned char*)&flg,1,iMsg.messageId);	
+				flg = 1;
+			}else{
+                        	narad(0,0,sender,0,1,iMsg.messageId);
+			}
                     }
                     break;
                 case 2:
@@ -299,9 +332,45 @@ int main(int argc, char **argv) {
 			srec->status = srec->status+1;
 			srec->numTicks = 0;
 		break;
-		case 90:
-			printf("all done\n");	
-                    	deleteByMsgId(iMsg.messageId);
+		case 7:
+			printf("I CASE 7  port : %d\n",*((short int*)(iMsg.data+7)));
+			wp = 0;
+			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
+			*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}	
+			i = 0;	
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			tsize = sysinfo->numRecords;
+			while(wp < iMsg.size){
+				res = decoder(iMsg.data+wp);
+				wp += res.numByte;
+				if(0 == searchRecordByPort(*((short int*)(dat+wp)))&& (*((short int*)(dat+wp))) != sysinfo->port){
+				//send buffer to that port & add to record table
+				sender = getRecordBySid(res.output);
+			    	sysinfo->recordTable[sender].sid=res.output;
+                            	sysinfo->recordTable[sender].port = (*((short int*)(dat+wp)));
+			    	sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
+			    	sysinfo->recordTable[sender].status = 0;
+                            	sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+        			narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+				}	
+				wp += sizeof(short int);
+			}
+			if(doesExistMsgId(iMsg.messageId,7)){
+				deleteByMsgId(iMsg.messageId);
+                        	narad(0,0,sender,0,1,iMsg.messageId);
+			}
+			else{
+				//send set difference
+				flg = 0;
+			}
+                  //	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());	
 		break;
 	}
 
@@ -320,8 +389,7 @@ int main(int argc, char **argv) {
 
 
 
-void clear(char *str)
-{
+void clear(char *str) {
 	int i=0;
 	while(str[i]!='\0')
 	{
@@ -556,7 +624,17 @@ senderRecord* getRecordByMsgId(int messageId){
  	}
 	return output;
 }
-
+char searchRecordByPort(int port){
+  char output = 0;
+  int i = 0;
+  while(i<sysinfo->numRecords && 0 == output){
+	if(sysinfo->recordTable[i].port == port){
+		output = 1;
+	}		
+	i += 1;
+  }
+  return output;
+}
 char doesExistMsgId(int messageId,char type){
   char output = 0;
   senderRecord* prev,*t;
@@ -573,8 +651,7 @@ char doesExistMsgId(int messageId,char type){
     return output;
 }
 
-recieverRecord* rdoesExistByMsgId(int messageId,char type)
-{ 
+recieverRecord* rdoesExistByMsgId(int messageId,char type) { 
   recieverRecord *output=NULL;
   recieverRecord* prev,*t;
   t = recieverTable;

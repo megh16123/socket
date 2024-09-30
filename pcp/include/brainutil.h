@@ -24,7 +24,7 @@ typedef struct {
   short int port;
   int buffer;
   char status;
- long numTicks;	
+  long numTicks;	
 } nRecord;
 
 typedef struct{
@@ -85,7 +85,7 @@ void printdecon(deconSys);
 deconSys convertSysMessage(char*);
 void bufferExchng();
 deconSys getFromEar();
-int generateMsgId();
+int generatemsgid();
 void deleteByMsgId(int messageId);
 char doesExistMsgId(int messageId,char type);
 recieverRecord* rdoesExistByMsgId(int messageId,char type);
@@ -100,3 +100,4 @@ senderRecord* getRecordByMsgId(int messageId);
 void rcheckStateAndProcess();
 void acces(unsigned char *out,int numbt);
 void processCompleted();
+char searchRecordByPort(int);
