@@ -23,7 +23,7 @@ ui: ${src}ui.c
 	gcc -o ui ${src}ui.c
 
 clean:
-	rm -f ear mouth ui brain launcher brainutil.o
+	rm -f ear mouth ui brain launcher brainutil.o *logs
 	ls configs | sed 's;\(.*\);sed -n '"'"'4,7p '"'"' configs/\1;'  | sh | sed 's;\(.*\);rm -f \1;' | sh
 	#sh killer
 	echo "Deleted"

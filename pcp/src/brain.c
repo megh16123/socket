@@ -2,6 +2,8 @@
 #include "brainutil.h"
 #include <time.h>
 
+#define pf(a) logs = fopen(id,"a"); fprintf a ; fclose(logs);
+
 // TODO  Difference computation routine
 // TODO  nRecord Table sharing routine 
 // TODO  Reciever end's timers need to be written
@@ -16,8 +18,8 @@ recieverRecord* recieverTable;
 recieverRecord *rtemp,*rpointer;
 int numRecords=0;
 char timeFlag = 1,flg=0;
-char *bf;
-FILE *f, *be, *uio;
+char *bf,*id;
+FILE *f, *be, *uio, *logs;
 char *intfiles[4],*sendBv,*dat;
 int tsize=0,enew = 0, eold =0,sendBvc = 0,i,j,wp;
 result res,bres;
@@ -62,13 +64,13 @@ recieverRecord* rtemp = recieverTable,*rprev;
 
 void printRecordTable(){
 	i=0;
-        printf("--------------Record-------------\n");
-   	printf("  ID\t\tPort\tBuffer\n");
+        pf((logs,"\n--------------Record-------------\n"));
+   	pf((logs,"  ID\t\tPort\tBuffer\n"));
 	while(i<(sysinfo->numRecords)){
-		printf("%s\t\t%d\t%d\n",(sysinfo->recordTable[i]).sid,(sysinfo->recordTable[i]).port,(sysinfo->recordTable[i]).buffer);
+		pf((logs,"%s\t\t%d\t%d\n",(sysinfo->recordTable[i]).sid,(sysinfo->recordTable[i]).port,(sysinfo->recordTable[i]).buffer));
 		i++;
 	}
-   	printf("---------------------------------\n");
+   	pf((logs,"---------------------------------\n"));
 }
 
 void prt(){
@@ -76,22 +78,22 @@ void prt(){
    recieverRecord *prev;
    prev = temp;
    temp = temp->next;
-   printf("--------------Reciever-----------------\n");
-   printf("  mesgID\tType\tFrom\tVector\n");
+   pf((logs,"\n--------------Reciever-----------------\n"));
+   pf((logs,"  mesgID\tType\tFrom\tVector\n"));
    while((temp != recieverTable)){
-          printf("  %d\t\t%d\t%d\t",temp->messageId,temp->type,temp->from);
+          pf((logs,"  %d\t\t%d\t%d\t",temp->messageId,temp->type,temp->from));
           acces(temp->bv,temp->bvc);
  	  prev = temp;
  	  temp = temp->next;
 }
-   printf("---------------------------------------\n");
+   pf((logs,"\n---------------------------------------\n"));
 }
 
 void print(senderRecord* temp){
-   	printf("-------------spec----------------\n");
-   	printf("  mesgID\tType\tTo\n");
-        printf("  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid);
-   	printf("---------------------------------\n");
+   	pf((logs,"-------------spec----------------\n"));
+   	pf((logs,"  mesgID\tType\tTo\n"));
+        pf((logs,"  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid));
+   	pf((logs,"---------------------------------\n"));
 }
 
 void pst(){
@@ -99,20 +101,19 @@ void pst(){
    senderRecord *prev;
    prev = temp;
    temp = temp->next;
-   printf("-------------Sender--------------\n");
-   printf("  mesgID\tType\tTo\n");
+   pf((logs,"\n-------------Sender--------------\n"));
+   pf((logs,"  mesgID\tType\tTo\n"));
    while((temp != senderTable)){
-           printf("  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid);
+          pf((logs,"  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid));
  	  prev = temp;
  	  temp = temp->next;
 }
-   printf("---------------------------------\n");
+   pf((logs,"---------------------------------\n"));
 }
 
 int main(int argc, char **argv) {
      time_t t;
      srand((unsigned)time(&t));
-
     // load config
     deconSys iMsg;
     if (argc == 2) {
@@ -125,7 +126,7 @@ int main(int argc, char **argv) {
     pthread_t tmp;
     sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
     if (NULL == config) {
-      printf("File didn't open \n");
+      pf((logs,"File didn't open \n"));
     } else {
       line = (char *)malloc(20);
       while ((line[j] = fgetc(config)) != EOF) {
@@ -134,6 +135,9 @@ int main(int argc, char **argv) {
           linesRead += 1;
           if (1 == linesRead) {
             sysinfo->systemId = line;
+	    id=strdup(sysinfo->systemId);
+	    strcat(id,"_logs");
+	    pf((logs,"%s\n",sysinfo->systemId)); 
           } else if (2 == linesRead) {
             sysinfo->port = (short int)atoi(line);
           } else if (3 == linesRead) {
@@ -165,6 +169,7 @@ int main(int argc, char **argv) {
           j += 1;
         }
       }
+	pf((logs,"Configs File Read\n"));
 	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL,0,0);
 	recieverTable = createRecieverRecord(-1,0,-1,0,-1,NULL,0,0);
 	senderTable->next = senderTable;
@@ -187,13 +192,15 @@ int main(int argc, char **argv) {
       result res;
       int sender;
       bufferExchng(); 
+      pf((logs,"\nSent Buffer to Knowns\n"));
       while (1) {
         iMsg = getFromEar();
         if(iMsg.type != -1){
             switch(iMsg.type){
                 case 0:
-		  printf("CASE 0\n");
+		  pf((logs,"Case 0: Recieved OK for Message: %d From: %d\n",iMsg.messageId,iMsg.from));
 		  if(7 == *(iMsg.data)){
+		  pf((logs,"Recieved Request for Peer Info From : %d\n",iMsg.from));
 			// send peer table
                   	sender = getRecordByPort(iMsg.from);
 			// Create Peer Table 
@@ -219,15 +226,13 @@ int main(int argc, char **argv) {
 				i += 1;
 			}
                   	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());
+		        pf((logs,"Sent Peer Info to : %d\n",iMsg.from));
                   	//sender = getRecordByPort(iMsg.from);
 		  }
-		  
                	  deleteByMsgId(iMsg.messageId);
-
-		  
-                    break;
+                 break;
                 case 1:
-		    printf("CASE 1\n");
+		    pf((logs,"\nCase 1: Recieved reply Buffer From: %d\n",iMsg.from));
                     if(1 == doesExistMsgId(iMsg.messageId,2)){
                         sender = getRecordByPort(iMsg.from);
                         sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
@@ -240,11 +245,11 @@ int main(int argc, char **argv) {
                         	narad(0,0,sender,0,1,iMsg.messageId);
 			}
                     }
+		    pf((logs,"Sent OK for Msg: %d To: %d\n",iMsg.messageId,iMsg.from));
                     break;
                 case 2:
-			printf("CASE 2\n");
+		    pf((logs,"\nCase 2: Recieved Buffer From: %d\n",iMsg.from));
                         if(1 == doesExistbyTo(iMsg.from,2)){
-		    	    printf("iCASE 2 : %s \n",sysinfo->systemId);
                         }else{
 		            res = decoder(iMsg.data);
                             offset = res.numByte;
@@ -252,20 +257,18 @@ int main(int argc, char **argv) {
 			    sysinfo->recordTable[sender].sid=res.output;
                             sysinfo->recordTable[sender].port = iMsg.from;
 			    sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data+offset));
-			    //printf("BUFF : %d\n",sysinfo->recordTable[sender].buffer);
 			    sysinfo->recordTable[sender].buffer = (sysinfo->sysBuffer<=sysinfo->recordTable[sender].buffer)?sysinfo->sysBuffer:sysinfo->recordTable[sender].buffer;
 			    sysinfo->recordTable[sender].status = 1;
                             sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
-                            // send 1	
                             narad(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);          
+		    	    pf((logs,"Sent Buffer To: %d\n",iMsg.from));
               	    }
                     break;
 	case 5:
-		printf("CASE 5 %d from %d\n",iMsg.messageId,iMsg.from);
+		pf((logs,"\nCase 5: Recieved Chunk %d for Msg %d From %d\n",*(iMsg.data+1),iMsg.messageId,iMsg.from));
 		recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,5);
 		sender = getRecordByPort(iMsg.from);
 		cs = iMsg.size - 2; 
- 		printf("index: %d cs: %d size : %d\n",*(iMsg.data+1),cs,iMsg.size);
 		if(NULL != rec){
 			rec->dsize += cs;
 			i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
@@ -302,10 +305,10 @@ int main(int argc, char **argv) {
 			*(rpointer->bv + (((int)(*(iMsg.data+1))) / 8)) |= mask((((int)(*(iMsg.data+1))) % 8));
 		//	and add data to table  
 		}
-		prt();
+		//prt();
 		break;
 		case 6:
-			printf("CASE 6 %d\n",iMsg.messageId);
+		        pf((logs,"\nCase 6: Recieved Resend request for Msg %d From: %d\n",iMsg.messageId,iMsg.from));
 			senderRecord* srec=getRecordByMsgId(iMsg.messageId);
 			//recieverRecord* rrec = rdoesExistByMsgId(iMsg.messageId,iMsg.type);
 			i=0;
@@ -322,7 +325,6 @@ int main(int argc, char **argv) {
 					for(j = 0; j < cs ; j++){
 						*(data+wp+j) = *((srec->message)+(cs*i)+j);
 					}	
-				//	*(data + wp) = '\0';
 					wp += cs;
 				}
 				i+=1;
@@ -333,7 +335,7 @@ int main(int argc, char **argv) {
 			srec->numTicks = 0;
 		break;
 		case 7:
-			printf("I CASE 7  \n");
+		        pf((logs,"\nCase 7: Recieved Peer Info From: %d\n",iMsg.from));
 			wp = 0;
 			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
@@ -365,6 +367,7 @@ int main(int argc, char **argv) {
 			    		sysinfo->recordTable[sender].status = 0;
                             		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
         				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
 					}
 				}	
 				wp += sizeof(short int);
@@ -374,6 +377,7 @@ int main(int argc, char **argv) {
 			if(doesExistMsgId(iMsg.messageId,7)){
 				deleteByMsgId(iMsg.messageId);
                         	narad(0,0,sender,"3",1,iMsg.messageId);
+		    	    	pf((logs,"Sent OK for Msg %d To: %d\n",iMsg.messageId,sysinfo->recordTable[sender].port));
 			} else{
 				//send set difference
 				i=0;wp=0;
@@ -392,10 +396,10 @@ int main(int argc, char **argv) {
 					i++;
 				}
                   		narad(7,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);	
+		    	    	pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
 				free(sendBv);
 				flg = 0;
 			}
-
 		break;
 	}
 
@@ -406,8 +410,9 @@ int main(int argc, char **argv) {
       }
     }
   } else {
-    printf("Too few arguments brain: \n");
+    pf((logs,"\nToo few arguments brain \n"));
   }
+  fclose(logs);
   return 0;
 }
 
@@ -496,12 +501,10 @@ void narad(char type,char status,int index, unsigned char *data,int dsize,int mI
 	 if(ic == (noc-1)){
 		if(dsize%cs==0)rem=cs;
 		else rem=dsize%cs;
-		printf("Rem: %d, size: %d\n",rem,size);
     		*((int *)(bf + sizeof(short int))) = (size+rem+2);
 		dataWriter(offset+1,(data+(((int)ic)*cs)),rem);
 	} else{ 
     		*((int *)(bf + sizeof(short int))) = (size+cs+2);
-		printf("CS: %d, size: %d\n",cs,size);
 		dataWriter(offset+1,(data+(((int)ic)*cs)),cs);
 	}		
 	ic+=1;
@@ -516,20 +519,20 @@ void narad(char type,char status,int index, unsigned char *data,int dsize,int mI
  	temp->status=DEFAULT_STATUS;
  	temp->numTicks=noc*nr->numTicks;
      }
-	pst();
+	//pst();
 
 }
 
 void printdecon(deconSys ds){
-	printf("\nMID : %d\n",ds.messageId);
-	printf("type : %d\n",ds.type);
-	printf("size : %d\n",ds.size);
-	printf("from : %d\n",ds.from);
-	printf("to : %d\n",ds.to);
-	printf("sysid : %s\n",ds.sysId);
+	pf((logs,"\nMID : %d\n",ds.messageId));
+	pf((logs,"type : %d\n",ds.type));
+	pf((logs,"size : %d\n",ds.size));
+	pf((logs,"from : %d\n",ds.from));
+	pf((logs,"to : %d\n",ds.to));
+	pf((logs,"sysid : %s\n",ds.sysId));
 	acces(ds.data,6);
-// 	printf("bv : %b\n",*(ds.data));
-//	printf("data : %s\n",res.output);
+// 	pf((logs,"bv : %b\n",*(ds.data)));
+//	pf((logs,"data : %s\n",res.output));
 }
 deconSys convertSysMessage(char *buffer){
 deconSys output;
@@ -755,7 +758,7 @@ void processCompleted(){
 			switch(rt->data[rt->dsize-1]){
 				case 7:
 						
-			printf("E CASE 7  port : %d\n",*((short int*)(rt->data+7)));
+		        pf((logs,"\nCase 7: Recieved Large Peer Info From: %d\n",*((short int*)(rt->data+7))));
 			wp = 0;
 			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
@@ -788,6 +791,7 @@ void processCompleted(){
 			    		sysinfo->recordTable[sender].status = 0;
                             		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
         				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
 					}
 				}	
 				wp += sizeof(short int);
@@ -795,6 +799,7 @@ void processCompleted(){
 			if(doesExistMsgId(rt->messageId,7)){
 				deleteByMsgId(rt->messageId);
                         	narad(0,0,sender,0,1,rt->messageId);
+		    	    	pf((logs,"Sent OK for Msg %d To: %d\n",rt->messageId,sysinfo->recordTable[sender].port));
 			}
 			else{
 				//send set difference
@@ -816,6 +821,7 @@ void processCompleted(){
 				}
 				flg = 0;
                   		narad(7,DEFAULT_STATUS,sender,dat,wp,rt->messageId);	
+		    	    	pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
 				free(sendBv);
 				}
 					break;	
@@ -840,15 +846,16 @@ void rcheckStateAndProcess(){
 		 	if(rt->next==recieverTable)rpointer=rprev;
   	 	   }else if((0==rt->numTicks)){
  			if((c=bitVectorContainsZero(rt->bv,rt->bvc))!=0){
- 				printf("NAY--ALAY\n");
           			narad((rt->type)+1,DEFAULT_STATUS,getRecordByPort(rt->from),rt->bv,ceil(rt->bvc/8.0),rt->messageId);
+				pf((logs,"\nSent Resend request for Msg %d\n",rt->messageId));
  				rt->numTicks = (5*(c+1)*DEFAULT_TICKS);
  				rt->status--;
  			} else{
  				//assemble();
- 				printf("ALAY\n");
+ 				pf((logs,"\nRecieved whole Large Msg: %d\n",rt->messageId));
 				rt->status = DEFAULT_STATUS + 1;
           			narad(0,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
+ 				pf((logs,"\nSent OK for Msg %d\n",rt->messageId));
 				deleteByMsgId(rt->messageId);				
 		 		if(rt->next==recieverTable)rpointer=rprev;
  			}
@@ -871,6 +878,7 @@ void checkStateAndProcess(){
  		 	if(t->next==senderTable)pointer=prev;
   	 	   }else if((0==t->numTicks)){
           		narad(t->type,(t->status-1),t->nr,t->message,t->dsize,t->messageId);
+			pf((logs,"\nResent Msg %d to %d\n",t->messageId,sysinfo->recordTable[t->nr].port));
   	 		prev->next = t->next;
  		 	if(t->next==senderTable)pointer=prev;
               	   }
@@ -912,14 +920,19 @@ void acces(unsigned char *out,int numbt) {
   int reqbits = numbt;
   i = 0;
   int bitsDone = 0;
-//   printf("\n");
+//   pf((logs,"\n"));
   while (i < reqbits) {
     if ((*(out + (i / 8)) & (mask(i % 8))) != 0)
-      printf("1");
+     { pf((logs,"1"));}
     else
-      printf("0");
+     { pf((logs,"0"));}
     i += 1;
-    (i % 8 == 0) ? printf("  ") : printf("");
+    if (i % 8 == 0){
+		pf((logs,"  "))
+	} 
+    else{
+	pf((logs,""))
+	}
   }
-  printf("\n");
+  pf((logs,"\n"));
 }
