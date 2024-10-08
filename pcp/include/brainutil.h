@@ -28,7 +28,7 @@ typedef struct {
 } nRecord;
 
 typedef struct{
- char type;
+ unsigned char type;
  int size;
  short int from;
  short int to;
@@ -38,7 +38,7 @@ typedef struct{
 }deconSys;
 
 struct senderR{
- char type;
+ unsigned char type;
  char status;
  int nr;
  int dsize;
@@ -53,7 +53,7 @@ struct senderR{
 typedef struct senderR senderRecord;
 
 struct recieverR{
- char type;
+ unsigned char type;
  char status;
  short int from;
  long numTicks;	
@@ -76,20 +76,20 @@ typedef struct {
   int sysBuffer;
 } sysInfo;
 
-senderRecord* createSenderRecord(char type,char status,int nr,long numTicks,int messageId,char* message,char bvc,int dsize);
+senderRecord* createSenderRecord(unsigned char type,char status,int nr,long numTicks,int messageId,char* message,char bvc,int dsize);
 
-recieverRecord* createRecieverRecord(char type,char status,short int from,long numTicks,int messageId,char* message,char bvc,int dsize);
+recieverRecord* createRecieverRecord(unsigned char type,char status,short int from,long numTicks,int messageId,char* message,char bvc,int dsize);
 
-void narad(char,char, int, unsigned char*, int,int);
+void narad(unsigned char,char, int, unsigned char*, int,int);
 void printdecon(deconSys);
 deconSys convertSysMessage(char*);
 void bufferExchng();
 deconSys getFromEar();
 int generatemsgid();
 void deleteByMsgId(int messageId);
-char doesExistMsgId(int messageId,char type);
-recieverRecord* rdoesExistByMsgId(int messageId,char type);
-char doesExistbyTo(short int from,char type);
+char doesExistMsgId(int messageId,unsigned char type);
+recieverRecord* rdoesExistByMsgId(int messageId,unsigned char type);
+char doesExistbyTo(short int from,unsigned char type);
 int getRecordByPort(short int from);
 int getRecordBySid(char* sid);
 int createRecord();

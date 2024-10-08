@@ -3,7 +3,11 @@
 #include <time.h>
 
 #define pf(a) logs = fopen(id,"a"); fprintf a ; fclose(logs);
-#define DEBUG pf((logs,"\nMesg Came\n"));
+
+// TODO  Difference computation routine
+// TODO  nRecord Table sharing routine
+// TODO  Reciever end's timers need to be written
+// TODO  Assemble Everything in case
 #define SYS_MSG 0x80 
 #define LRG_MSG	0x40
 #define BUFF_MSG 0x01
@@ -11,7 +15,7 @@
 #define PEER_MSG 0x03
 #define OK 0x00
 #define B_CLEAR 0x3F
-#define NOP 255
+
 static long sysTime = 0;
 sysInfo *sysinfo;
 senderRecord* senderTable;
@@ -172,8 +176,8 @@ int main(int argc, char **argv){
         		}
       		}
 	pf((logs,"Configs File Read\n"));
-	senderTable = createSenderRecord(0,0,-1,0,-1,NULL,0,0);
-	recieverTable = createRecieverRecord(0,0,-1,0,-1,NULL,0,0);
+	senderTable = createSenderRecord(-1,0,-1,0,-1,NULL,0,0);
+	recieverTable = createRecieverRecord(-1,0,-1,0,-1,NULL,0,0);
 	senderTable->next = senderTable;
 	recieverTable->next = recieverTable;
 	pointer = senderTable;
@@ -197,47 +201,21 @@ int main(int argc, char **argv){
       pf((logs,"\nSent Buffer to Knowns\n"));
       while (1) {
         iMsg = getFromEar();
-        if(iMsg.type != NOP){
-		if(SYS_MSG == (iMsg.type&SYS_MSG)){
-			if(LRG_MSG == (iMsg.type&LRG_MSG)){
-				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type);
-				sender = getRecordByPort(iMsg.from);
-				cs = iMsg.size - 2; 
-				int timp=(sysinfo->recordTable[sender].buffer-(16+ceil(((strlen(sysinfo->systemId)*9)+1)/8.0)));
-				if(NULL != rec){
-					rec->dsize += cs;
-					i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
-					*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
-					j = 0;
-					while(j < cs){
-						*(rec->data + timp*(i)+j) = *(iMsg.data+2+j);
-						j+=1;
-					}
-				}else{
-					addToRecieverTable(iMsg.type,DEFAULT_STATUS,iMsg.from,DEFAULT_TICKS,iMsg.messageId,(char*)malloc(timp*(*(iMsg.data))),*(iMsg.data),cs);
-					i = 0;
-					while(i < cs){
-						*(rpointer->data + cs*(*(iMsg.data+1))+i) = *(iMsg.data+2+i);
-						i+=1;
-					}
-					i = 0;
-					*(rpointer->bv + (((int)(*(iMsg.data+1))) / 8)) |= mask((((int)(*(iMsg.data+1))) % 8));
-				}
-				prt();
+        if(iMsg.type != -1){
+		if(SYS_MSG == iMsg.type&SYS_MSG){
+			if(LRG_MSG == iMsg.type&LRG_MSG){
+								
 			}else{
 				switch(iMsg.type&B_CLEAR){
 				
 					case OK:
 		  				pf((logs,"Case 0: Recieved OK for Message: %d From: %d\n",iMsg.messageId,iMsg.from));
-						char ata[5119];
-						i = 0;
-						while(i < 5119) ata[i++] = 'P';
-		  				narad(SYS_MSG|0x04,DEFAULT_STATUS,0,ata,5119,iMsg.messageId+1);
+		  				narad(LRG_MSG,DEFAULT_STATUS,0,"test",5120,iMsg.messageId+1);
                	  				deleteByMsgId(iMsg.messageId);
                	  				deleteByMsgId(iMsg.messageId+1);
 						break;	
 					case BUFF_MSG:
-		    				pf((logs,"\nCase 1: Recieved Buffer From: %d\n",iMsg.from));
+		    				pf((logs,"\nCase 2: Recieved Buffer From: %d\n",iMsg.from));
                        				 if(1 == doesExistbyTo(iMsg.from,iMsg.type)){
                         			 }else{
 		            				res = decoder(iMsg.data);
@@ -254,86 +232,22 @@ int main(int argc, char **argv){
               	    				}
 						 break;
 					case BUFF_REPLY_MSG:
-		    				pf((logs,"\nCase 2: Recieved reply Buffer From: %d\n",iMsg.from));
-                    				if(1 == doesExistMsgId(iMsg.messageId,(SYS_MSG|BUFF_MSG))){
+		    				pf((logs,"\nCase 1: Recieved reply Buffer From: %d\n",iMsg.from));
+                    				if(1 == doesExistMsgId(iMsg.messageId,iMsg.type)){
                         				sender = getRecordByPort(iMsg.from);
                         				sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
                         				deleteByMsgId(iMsg.messageId);
- 							if(0 == flg){
- 								flg = 7;
- 								narad(SYS_MSG|OK,0,sender,(unsigned char*)&flg,1,iMsg.messageId);
- 							}else{
-								flg = 0;
-                        					narad(SYS_MSG|OK,0,sender,&flg,1,iMsg.messageId);
- 							}
-							flg = 1;
-		    				pf((logs,"Sent OK for Msg: %d To: %d\n",iMsg.messageId,iMsg.from));
+							if(0 == flg){
+								flg = 7;
+								narad(SYS_MSG|OK,0,sender,(unsigned char*)&flg,1,iMsg.messageId);
+								flg = 1;
+							}else{
+                        					narad(SYS_MSG|OK,0,sender,0,1,iMsg.messageId);
+							}
                     				}
+		    				pf((logs,"Sent OK for Msg: %d To: %d\n",iMsg.messageId,iMsg.from));
                     				break;
 					case PEER_MSG:
-		        			pf((logs,"\nCase 7: Recieved Large Peer Info From: %d\n",*((short int*)(iMsg.data+7))));
-						wp = 0;
-						bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
-						bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
-						*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
-						i = 0;
-						tsize  = 0;
-						while(i < sysinfo->numRecords){
-							tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
-							i += 1;
-						}
-						i = 0;
-						dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
-						sendBvc=ceil(sysinfo->numRecords/8.0);
-						sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
-						tsize = sysinfo->numRecords;
-						while(wp < iMsg.size){
-							res = decoder(iMsg.data+wp);
-							wp += res.numByte;
-							i=searchRecordByPort(*((short int*)(iMsg.data+wp)));
-							if(i!=-1){
-								*(sendBv+(i/8)) |=  mask(i%8);
-							}else{
-								if((*((short int*)(iMsg.data+wp))) != sysinfo->port){
-									//send buffer to that port & add to record table
-									sender = getRecordBySid(res.output);
-			    						sysinfo->recordTable[sender].sid=res.output;
-                            						sysinfo->recordTable[sender].port = (*((short int*)(iMsg.data+wp)));
-			    						sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
-			    						sysinfo->recordTable[sender].status = 0;
-                            						sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
-        								narad(SYS_MSG|BUFF_MSG,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
-									pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
-								}
-							}
-							wp += sizeof(short int);
-						}
-						if(doesExistMsgId(iMsg.messageId,7)){
-							deleteByMsgId(iMsg.messageId);
-                        				narad(SYS_MSG|OK,0,sender,0,1,iMsg.messageId);
-		    	    				pf((logs,"Sent OK for Msg %d To: %d\n",iMsg.messageId,sysinfo->recordTable[sender].port));
-						}else{
-							//send set difference
-							i=0;wp=0;
-							while(i<tsize) {
-								if((*(sendBv+(i/8))&mask(i%8))==0){
-									res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
-									j = 0;
-									while(j < res.numByte){
-										*(dat+wp+j) = res.output[j];
-										j += 1;
-									}
-									wp += res.numByte;
-									*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
-									wp += sizeof(short int);
-								}
-							i++;
-							}
-							flg = 0;
-                  					narad(SYS_MSG|PEER_MSG,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);
-		    	    				pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
-							free(sendBv);
-						}
 						break;
 					default:
 		    				pf((logs,"Not a valid TYpe\n"));
@@ -342,6 +256,212 @@ int main(int argc, char **argv){
 			}
 		}else{
 		}
+// -----------------------------------------------------------
+            switch(iMsg.type){
+                case 0:
+		  /*if(7 == *(iMsg.data)){
+		  pf((logs,"Recieved Request for Peer Info From : %d\n",iMsg.from));
+			// send peer table
+                  	sender = getRecordByPort(iMsg.from);
+			// Create Peer Table
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}
+			i = 0;
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			wp = 0;
+			while(i < sysinfo->numRecords){
+				res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+				j = 0;
+				while(j < res.numByte){
+					*(dat+wp+j) = res.output[j];
+					j += 1;
+				}
+				wp += res.numByte;
+				*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
+				wp += sizeof(short int);
+				i += 1;
+			}
+                  	narad(7,DEFAULT_STATUS,sender,dat,wp,generatemsgid());
+		        pf((logs,"Sent Peer Info to : %d\n",iMsg.from));
+                  	//sender = getRecordByPort(iMsg.from);
+		  }*/
+		  narad(5,DEFAULT_STATUS,0,"test",5120,iMsg.messageId+1);
+               	  deleteByMsgId(iMsg.messageId);
+               	  deleteByMsgId(iMsg.messageId+1);
+                 break;
+                case 1:
+		    pf((logs,"\nCase 1: Recieved reply Buffer From: %d\n",iMsg.from));
+                    if(1 == doesExistMsgId(iMsg.messageId,2)){
+                        sender = getRecordByPort(iMsg.from);
+                        sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data));
+                        deleteByMsgId(iMsg.messageId);
+			if(0 == flg){
+				flg = 7;
+				narad(0,0,sender,(unsigned char*)&flg,1,iMsg.messageId);
+				flg = 1;
+			}else{
+                        	narad(0,0,sender,0,1,iMsg.messageId);
+			}
+                    }
+		    pf((logs,"Sent OK for Msg: %d To: %d\n",iMsg.messageId,iMsg.from));
+                    break;
+                case 2:
+		    pf((logs,"\nCase 2: Recieved Buffer From: %d\n",iMsg.from));
+                        if(1 == doesExistbyTo(iMsg.from,2)){
+                        }else{
+		            res = decoder(iMsg.data);
+                            offset = res.numByte;
+                            sender = getRecordBySid(res.output);
+			    sysinfo->recordTable[sender].sid=res.output;
+                            sysinfo->recordTable[sender].port = iMsg.from;
+			    sysinfo->recordTable[sender].buffer = *((int*)(iMsg.data+offset));
+			    sysinfo->recordTable[sender].buffer = (sysinfo->sysBuffer<=sysinfo->recordTable[sender].buffer)?sysinfo->sysBuffer:sysinfo->recordTable[sender].buffer;
+			    sysinfo->recordTable[sender].status = 1;
+                            sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+                            narad(1,DEFAULT_STATUS,sender,(unsigned char*)(&sysinfo->recordTable[sender].buffer),sizeof(int),iMsg.messageId);
+		    	    pf((logs,"Sent Buffer To: %d\n",iMsg.from));
+              	    }
+                    break;
+	case 5:
+		pf((logs,"\nCase 5: Recieved Chunk %d for Msg %d From %d\n",*(iMsg.data+1),iMsg.messageId,iMsg.from));
+		recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,5);
+		sender = getRecordByPort(iMsg.from);
+		cs = iMsg.size - 2;
+		int timp=(sysinfo->recordTable[sender].buffer-(16+ceil(((strlen(sysinfo->systemId)*9)+1)/8.0)));
+		fname = (unsigned char*)malloc((log10(iMsg.messageId)+5)*sizeof(unsigned char));
+		sprintf(fname,"REC_%d",iMsg.messageId);
+		if(NULL != rec){
+			rec->dsize += cs;
+			i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
+			*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
+			j = 0;
+			config = fopen((const char*)fname,"rb+");
+			fseek(config,timp*(*(iMsg.data+1)),SEEK_SET);
+			while(j < cs){
+				fputc(*(iMsg.data+2+j),config);
+				j+=1;
+			}
+			fclose(config);
+		}
+		}else{
+			config = fopen((const char*)fname,"wb");
+			fseek(config,timp*(*(iMsg.data)),SEEK_SET);
+			addToRecieverTable(5,3,iMsg.from,DEFAULT_TICKS,iMsg.messageId,fname,*(iMsg.data),cs);
+			fclose(config);
+			config = fopen((const char*)fname,"rb+");
+			fseek(config,timp*(*(iMsg.data+1)),SEEK_SET);
+			i = 0;
+			while(i < cs){
+				fputc(*(iMsg.data+2+i),config);
+				i+=1;
+			}
+			fclose(config);
+			i = 0;
+			*(rpointer->bv + (((int)(*(iMsg.data+1))) / 8)) |= mask((((int)(*(iMsg.data+1))) % 8));
+		}
+		//prt();
+		break;
+		case 6:
+		        pf((logs,"\nCase 6: Recieved Resend request for Msg %d From: %d\n",iMsg.messageId,iMsg.from));
+			senderRecord* srec=getRecordByMsgId(iMsg.messageId);
+			i=0;
+			int cs ,dsize=srec->dsize,timp; // noc and cs needed
+			result res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			timp = (sysinfo->recordTable[getRecordByPort(iMsg.from)].buffer) - (16 + res.numByte);
+			cs = timp;
+			char i = 0,output=0,wp=0;
+// 			char* data = (char*) malloc((sizeof(char)*dsize)+1);
+			config = fopen((const char*)srec->message,"rb+");
+			while(i < srec->bvc){
+				if(((iMsg.data[i/8])&mask(i%8)) == 0){
+					if(i == srec->bvc-1){
+						cs = dsize%cs;
+					}
+					for(j = 0; j < cs ; j++){
+						*(data+wp+j) = *((srec->message)+(timp*i)+j);
+					}
+					wp += cs;
+				}
+				i+=1;
+			}
+			srec->message = data;
+ 			srec->dsize = wp;
+			srec->status = srec->status+1;
+			srec->numTicks = 0;
+		break;
+		case 7:
+		        pf((logs,"\nCase 7: Recieved Peer Info From: %d\n",iMsg.from));
+			wp = 0;
+			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
+			*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}
+			i = 0;
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			sendBvc=ceil(sysinfo->numRecords/8.0);
+			sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
+			tsize = sysinfo->numRecords;
+			while(wp < iMsg.size){
+				res = decoder(iMsg.data+wp);
+				wp += res.numByte;
+				i=searchRecordByPort(*((short int*)(iMsg.data+wp)));
+				if(i!=-1){
+					*(sendBv+(i/8)) |=  mask(i%8);
+				}else{
+					if((*((short int*)(iMsg.data+wp))) != sysinfo->port){
+					//send buffer to that port & add to record table
+					sender = getRecordBySid(res.output);
+			    		sysinfo->recordTable[sender].sid=res.output;
+                            		sysinfo->recordTable[sender].port = (*((short int*)(iMsg.data+wp)));
+			    		sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
+			    		sysinfo->recordTable[sender].status = 0;
+                            		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+        				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
+					}
+				}
+				wp += sizeof(short int);
+			}
+        		printRecordTable();
+                  	sender = getRecordByPort(iMsg.from);
+			if(doesExistMsgId(iMsg.messageId,7)){
+				deleteByMsgId(iMsg.messageId);
+                        	narad(0,0,sender,"3",1,iMsg.messageId);
+		    	    	pf((logs,"Sent OK for Msg %d To: %d\n",iMsg.messageId,sysinfo->recordTable[sender].port));
+			} else{
+				//send set difference
+				i=0;wp=0;
+				while(i<tsize) {
+					if((*(sendBv+(i/8))&mask(i%8))==0){
+						res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+						j = 0;
+						while(j < res.numByte){
+							*(dat+wp+j) = res.output[j];
+							j += 1;
+						}
+						wp += res.numByte;
+						*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
+						wp += sizeof(short int);
+					}
+					i++;
+				}
+                  		narad(7,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);
+		    	    	pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
+				free(sendBv);
+				flg = 0;
+			}
+		break;
+	}
+
       }else{}
         rcheckStateAndProcess();
 	processCompleted();
@@ -407,8 +527,7 @@ void dataWriter(int offset, char *data, int dsize){
 	}
 }
 
-void narad(unsigned char type,char status,int index, unsigned char *data,int dsize,int mId) {
-    int rp,offset = 0, i = 0, size,cs=0,rem;
+void narad(unsigned char type,char status,int index, unsigned char *data,int dsize,int mId) { int offset = 0, i = 0, size,cs=0,rem;
     char  noc=1,ic=0;
     result res,messageId;
     messageId = encoder((unsigned char*)&mId,sizeof(int));
@@ -416,48 +535,78 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
     res = encoder(nr->sid, strlen(nr->sid));
     size = sizeof(int) + sizeof(short int) * 2 + res.numByte + sizeof(char)+messageId.numByte;
     clm(bf);
-    if (nr->buffer < size+dsize)
-	type |= LRG_MSG;
-    offset = writeMetaData(type,sysinfo->port,nr,messageId,res);
-    if(SYS_MSG == (type&SYS_MSG)){
-	if(LRG_MSG == (type&LRG_MSG)){
-		// 1 for type
-		cs = nr->buffer - (16 + res.numByte);	
-		noc = ceil(dsize/(double)cs);
-		*(bf+offset) = noc;
-		offset += 1;
-		ic=0;
-		while(ic < noc){
-	 		clm(bf+offset);
-	 		*(bf+offset) = ic;
-	 		if(ic == (noc-1)){
-				if(dsize%cs==0)rem=cs;
-				else rem=dsize%cs;
-    				*((int *)(bf + sizeof(short int))) = (size+rem+2);
-				dataWriter(offset+1,(data+(((int)ic)*cs)),rem);
-			}else{ 
-    				*((int *)(bf + sizeof(short int))) = (size+cs+2);
-				dataWriter(offset+1,(data+(((int)ic)*cs)),cs);
-			}		
-			ic += 1;
-    			sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+    if (nr->buffer >= size+dsize) {
+	offset = writeMetaData(type,sysinfo->port,nr,messageId,res);
+	size += dsize;
+    	*((int *)(bf + sizeof(short int))) = size;
+	dataWriter(offset,data,dsize);
+    	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+    }else{
+	// append type
+	int prevSize=dsize,metaSize;
+	config = fopen((const char*)data,"rb");
+	offset = writeMetaData(5,sysinfo->port,nr,messageId,res);
+	cs = nr->buffer - (16 + res.numByte);
+	// TODO : If something hangs up see the strlen !!!
+	res = encoder((unsigned char*)data,strlen(data));
+	metaSize = (1 + res.numByte + sizeof(int));
+	res.output = (unsigned char*)realloc(res.output,sizeof(unsigned char)*res.numByte+sizeof(int)+1); 
+	dsize += metaSize;
+	// 1 for type
+	*((int*)(res.output+res.numByte)) = res.numByte;
+	*(res.output + res.numByte +sizeof(int)) = type;
+	noc = ceil(dsize/(double)cs);
+	*(bf+offset) = noc;
+	offset += 1;
+	ic=0;
+	/*while(ic < noc){
+	 clm(bf+offset);
+	 *(bf+offset) = ic;
+	 if(ic == (noc-1)){
+		if(dsize%cs==0)rem=cs;
+		else rem=dsize%cs;
+    		*((int *)(bf + sizeof(short int))) = (size+rem+2);
+		fread(bf+offset+1,1,rem,config);
+	} else{
+    		*((int *)(bf + sizeof(short int))) = (size+cs+2);
+		//fread(bf+offset+1,1,cs,config);
+	}
+	ic+=1;
+    	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+	}*/
+	rp=0;
+	while(ic < noc){
+	 clm(bf+offset);
+	 *(bf+offset) = ic;
+	 if(rp+cs <= prevSize){
+    		*((int *)(bf + sizeof(short int))) = (size+cs+2);
+		fread(bf+offset+1,1,cs,config);
+		rp+=cs;
+	} else{
+		fread(bf+offset+1,1,(prevSize-rp),config);
+		rp=prevSize-rp;
+		if((cs-rp) >= metaSize)
+			memcpy(bf+offset+1+rp+1,res.output,metaSize);
+		else{
+			memcpy(bf+offset+1+rp+1,res.output,metaSize-(cs-rp));
+			
 		}
-	}else{
-		size += dsize;
-    		*((int *)(bf + sizeof(short int))) = size;
-		dataWriter(offset,data,dsize);
-    		sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
-    	}
-        if(!doesExistMsgId(mId,type)){
-     		addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
-        }else{
- 		senderRecord* temp = getRecordByMsgId(mId);
- 		temp->status=DEFAULT_STATUS;
- 		temp->numTicks=noc*nr->numTicks;
-        }
-	pst();
-	}else{
+	}
+	ic+=1;
+    	sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+	}
+
+	dsize -= (1 + res.numByte + sizeof(int));
+	
     }
+     if(!doesExistMsgId(mId,type)){
+     	addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+     }else{
+ 	senderRecord* temp = getRecordByMsgId(mId);
+ 	temp->status=DEFAULT_STATUS;
+ 	temp->numTicks=noc*nr->numTicks;
+     }
+	//pst();
 
 }
 
@@ -523,7 +672,7 @@ void bufferExchng() {
 deconSys getFromEar(){
   int dsize,i;
   deconSys output;
-  output.type = NOP;
+  output.type = -1;
   fseek(be, 0, SEEK_END);
   enew = ftell(be);
   dsize = enew - eold;
@@ -683,6 +832,7 @@ char doesExistbyTo(short int from,unsigned char type){
  * if non-zero then decrement status, send retry msg with bit vector, set timer(count(0,bv)*numticks)
  ***************************************/
 void processCompleted(){
+
   	recieverRecord* rprev,*rt;
   	rt = recieverTable;
   	rprev = rt;
@@ -692,79 +842,77 @@ void processCompleted(){
   	while(rt != recieverTable){
   			// free the space in both if else
 		if(rt->status == (DEFAULT_STATUS+1)){
-			switch(rt->type&B_CLEAR){
-				case PEER_MSG:
-		        		pf((logs,"\nCase 7: Recieved Large Peer Info From: %d\n",*((short int*)(rt->data+7))));
-					wp = 0;
-					bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
-					bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
-					*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
-					i = 0;
-					tsize  = 0;
-					while(i < sysinfo->numRecords){
-						tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
-						i += 1;
+			switch(rt->data[rt->dsize-1]){
+				case 7:
+
+		        pf((logs,"\nCase 7: Recieved Large Peer Info From: %d\n",*((short int*)(rt->data+7))));
+			wp = 0;
+			bres = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
+			bres.output = (unsigned char*)realloc(bres.output,(bres.numByte+sizeof(int)));
+			*((int*)(bres.output+bres.numByte)) = sysinfo->sysBuffer;
+			i = 0;
+			tsize  = 0;
+			while(i < sysinfo->numRecords){
+				tsize += ceil(((strlen(sysinfo->recordTable[i].sid)*9)+1)/8.0);
+				i += 1;
+			}
+			i = 0;
+			dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
+			sendBvc=ceil(sysinfo->numRecords/8.0);
+			sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
+			tsize = sysinfo->numRecords;
+			while(wp < rt->dsize-1){
+				res = decoder(rt->data+wp);
+				wp += res.numByte;
+				i=searchRecordByPort(*((short int*)(rt->data+wp)));
+				if(i!=-1){
+					*(sendBv+(i/8)) |=  mask(i%8);
+				}
+				else{
+					if((*((short int*)(rt->data+wp))) != sysinfo->port){
+					//send buffer to that port & add to record table
+					sender = getRecordBySid(res.output);
+			    		sysinfo->recordTable[sender].sid=res.output;
+                            		sysinfo->recordTable[sender].port = (*((short int*)(rt->data+wp)));
+			    		sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
+			    		sysinfo->recordTable[sender].status = 0;
+                            		sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
+        				narad(2,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
+					pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
 					}
-					i = 0;
-					dat = (unsigned char*)malloc(tsize*sizeof(unsigned char)+sysinfo->numRecords*sizeof(short int));
-					sendBvc=ceil(sysinfo->numRecords/8.0);
-					sendBv=(unsigned char*)calloc(sendBvc,sizeof(unsigned char));
-					tsize = sysinfo->numRecords;
-					while(wp < rt->dsize-1){
-						res = decoder(rt->data+wp);
-						wp += res.numByte;
-						i=searchRecordByPort(*((short int*)(rt->data+wp)));
-						if(i!=-1){
-							*(sendBv+(i/8)) |=  mask(i%8);
-						}else{
-							if((*((short int*)(rt->data+wp))) != sysinfo->port){
-								//send buffer to that port & add to record table
-								sender = getRecordBySid(res.output);
-			    					sysinfo->recordTable[sender].sid=res.output;
-                            					sysinfo->recordTable[sender].port = (*((short int*)(rt->data+wp)));
-			    					sysinfo->recordTable[sender].buffer = DEFAULT_BUFFER;
-			    					sysinfo->recordTable[sender].status = 0;
-                            					sysinfo->recordTable[sender].numTicks = DEFAULT_TICKS;
-        							narad(SYS_MSG|BUFF_MSG,DEFAULT_STATUS,sender,bres.output,(bres.numByte+sizeof(int)),generatemsgid());
-								pf((logs,"Sent Buffer to: %d\n",sysinfo->recordTable[sender].port));
-							}
+				}
+				wp += sizeof(short int);
+			}
+			if(doesExistMsgId(rt->messageId,7)){
+				deleteByMsgId(rt->messageId);
+                        	narad(0,0,sender,0,1,rt->messageId);
+		    	    	pf((logs,"Sent OK for Msg %d To: %d\n",rt->messageId,sysinfo->recordTable[sender].port));
+			}
+			else{
+				//send set difference
+				i=0;wp=0;
+				while(i<tsize)
+				{
+					if((*(sendBv+(i/8))&mask(i%8))==0){
+						res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
+						j = 0;
+						while(j < res.numByte){
+							*(dat+wp+j) = res.output[j];
+							j += 1;
 						}
+						wp += res.numByte;
+						*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
 						wp += sizeof(short int);
 					}
-					if(doesExistMsgId(rt->messageId,7)){
-						deleteByMsgId(rt->messageId);
-                        			narad(SYS_MSG|OK,0,sender,0,1,rt->messageId);
-		    	    			pf((logs,"Sent OK for Msg %d To: %d\n",rt->messageId,sysinfo->recordTable[sender].port));
-					}else{
-						//send set difference
-						i=0;wp=0;
-						while(i<tsize) {
-							if((*(sendBv+(i/8))&mask(i%8))==0){
-								res = encoder(sysinfo->recordTable[i].sid,strlen(sysinfo->recordTable[i].sid));
-								j = 0;
-								while(j < res.numByte){
-									*(dat+wp+j) = res.output[j];
-									j += 1;
-								}
-								wp += res.numByte;
-								*((short int*)(dat+wp)) = sysinfo->recordTable[i].port;
-								wp += sizeof(short int);
-							}
-						i++;
-						}
-						flg = 0;
-                  				narad(SYS_MSG|PEER_MSG,DEFAULT_STATUS,sender,dat,wp,rt->messageId);
-		    	    			pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
-						free(sendBv);
-					}
-					break;
-				case 0x04:
-					pf((logs,"%s\n",rt->data));
+					i++;
+				}
+				flg = 0;
+                  		narad(7,DEFAULT_STATUS,sender,dat,wp,rt->messageId);
+		    	    	pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
+				free(sendBv);
+				}
 					break;
 			}
-		
-			rprev->next = rt->next;
-		 	if(rt->next==recieverTable)rpointer=rprev;
 		}
   	  		rprev = rt;
   	  		rt = rt->next;
@@ -789,16 +937,16 @@ void rcheckStateAndProcess(){
 				pf((logs,"\nSent Resend request for Msg %d\n",rt->messageId));
  				rt->numTicks = (5*(c+1)*DEFAULT_TICKS);
  				rt->status--;
- 			}else{
+ 			} else{
  				//assemble();
  				pf((logs,"\nRecieved whole Large Msg: %d\n",rt->messageId));
 				rt->status = DEFAULT_STATUS + 1;
-          			narad(OK,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
+          			narad(0,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
  				pf((logs,"\nSent OK for Msg %d\n",rt->messageId));
 				deleteByMsgId(rt->messageId);
 		 		if(rt->next==recieverTable)rpointer=rprev;
  			}
-               	}
+                	   }
   	  		rprev = rt;
   	  		rt = rt->next;
   	}
