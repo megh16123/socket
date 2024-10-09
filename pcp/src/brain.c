@@ -201,7 +201,7 @@ int main(int argc, char **argv){
         if(iMsg.type != NOP){
 		if(SYS_MSG == (iMsg.type&SYS_MSG)){
 			if(LRG_MSG == (iMsg.type&LRG_MSG)){
-				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type);
+				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type,iMsg.from);
 				sender = getRecordByPort(iMsg.from);
 				cs = iMsg.size - 2; 
 				int timp=(sysinfo->recordTable[sender].buffer-(16+ceil(((strlen(sysinfo->systemId)*9)+1)/8.0)));
@@ -256,10 +256,16 @@ int main(int argc, char **argv){
 								i += 1;
 							}
                   					narad(SYS_MSG|PEER_MSG,DEFAULT_STATUS,sender,dat,wp,generatemsgid());
+               	  					deleteByMsgId(iMsg.messageId);
 		  				}else if(6 == *(iMsg.data)){
 							// Schedule the file to be sent
+							senderRecord *srec = getRecordByMsgId(iMsg.messageId);
+							srec->status = DEFAULT_STATUS+1;	
+							
+						}else{
+               	  					deleteByMsgId(iMsg.messageId);
 						}
-               	  				deleteByMsgId(iMsg.messageId);
+
 						//char ata[5119];
 						//i = 0;
 						//while(i < 5119) ata[i++] = 'P';
@@ -379,24 +385,26 @@ int main(int argc, char **argv){
 				// if yes then write to the file present in rrec->data
 				// else whatever is in data treat it as a filename and respond with ok with same messageID 
 				// |fname|dsize|noc|
-				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type);
+				// TODO : check for file existance or store the filename as messageId_name
+				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type,iMsg.from);
 				sender = getRecordByPort(iMsg.from);
-				cs = iMsg.size - 2; 
-				int timp=(sysinfo->recordTable[sender].buffer-(16+ceil(((strlen(sysinfo->systemId)*9)+1)/8.0)));
+				cs = iMsg.size-1; 
+				int timp=(sysinfo->recordTable[sender].buffer-(7+sizeof(short int)));
 				if(NULL != rec){
 					config = fopen((const char*)rec->data,"rb+");
-					i = bitCountToIndex(*(iMsg.data+1),rec->bv,rec->bvc);
+					i = *(iMsg.data);
 					*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
-					j = 0;
 					fseek(config,timp*i,SEEK_SET);
-					fwrite(iMsg.data+2,1,cs,config);
+					fwrite(iMsg.data+1,1,cs,config);
 					fclose(config);
 				}else{
 					res = decoder(iMsg.data);
+					res.output = (unsigned char*)realloc(res.output,res.numByte+ceil(log10(iMsg.messageId))+2);
+					sprintf(res.output,"%s_%d",res.output,iMsg.messageId);
 					config = fopen((const char*)res.output,"rb+");
 					fseek(config,*((int*)(iMsg.data+res.numByte)),SEEK_SET);
 					fclose(config);
-					addToRecieverTable(iMsg.type,DEFAULT_STATUS,iMsg.from,DEFAULT_TICKS,iMsg.messageId,res.output,*(iMsg.data+res.numByte+sizeof(int)),*((int*)(iMsg.data+res.numByte)));
+					addToRecieverTable(iMsg.type,DEFAULT_STATUS,iMsg.from,*(iMsg.data+res.numByte+sizeof(int))*DEFAULT_TICKS,iMsg.messageId,res.output,*(iMsg.data+res.numByte+sizeof(int)),*((int*)(iMsg.data+res.numByte)));
 					*((char*)&cs) = 6;
 					narad(SYS_MSG|OK,0,sender,((char*)&cs),1,iMsg.messageId);
 				}
@@ -411,6 +419,7 @@ int main(int argc, char **argv){
       }else{}
         rcheckStateAndProcess();
 	processCompleted();
+	processFiles();
         checkStateAndProcess();
       }
     }
@@ -436,23 +445,24 @@ int generatemsgid(){
 }
 
 int writeMetaData(unsigned char type, short int from, nRecord* nr, result messageId, result res){
+	// TODO : Change the metadata as per the new order
 	int offset=0,i;
 	clm(bf);
 	*((short int *)bf) = nr->port;
         offset += sizeof(short int);
         offset += sizeof(int);
-        *(bf + offset) = type;
-        offset += sizeof(unsigned char);
-        *((short int *)(bf + offset)) = nr->port;
-        offset += sizeof(short int);
-        *((short int *)(bf + offset)) = from;
-        offset += sizeof(short int);
         i = 0;
         while(i < messageId.numByte){
           *(bf + offset + i) = messageId.output[i];
           i += 1;
         }
       	offset += messageId.numByte;
+        *((short int *)(bf + offset)) = from;
+        offset += sizeof(short int);
+        *(bf + offset) = type;
+        offset += sizeof(unsigned char);
+        *((short int *)(bf + offset)) = nr->port;
+        offset += sizeof(short int);
       	i = 0;
       	while (i < res.numByte) {
         	*(bf + offset + i) = res.output[i];
@@ -520,6 +530,19 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
         }
 	pst();
 	}else{
+	// TODO : Send as file 
+		cs = nr->buffer - (7+sizeof(short int));
+		noc = ceil(dsize/(double)cs);
+	// TODO : If code hung up strlen is not working properly here 
+		res = encoder(data,strlen(data));
+    		*((int *)(bf + sizeof(short int))) = (size+res.numByte+sizeof(int)+1);
+		dataWriter(offset,res.output,res.numByte);
+		offset += res.numByte;
+		*((int*)(bf+offset)) = dsize;
+		offset += sizeof(int);
+		*(bf+offset) = noc;
+		sendToFile(intfiles[1],bf,sysinfo->sysBuffer+sizeof(short int));
+     		addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
     }
 }
 
@@ -535,35 +558,52 @@ void printdecon(deconSys ds){
 //	pf((logs,"data : %s\n",res.output));
 }
 deconSys convertSysMessage(char *buffer){
+// TODO : Change acoording to the order in writeMetaData
 deconSys output;
 result res;
+recieverRecord *rrec;
 int offset = 0,i=0,dsize=0;
 output.size = *((int*)buffer);
 if(*((int*)buffer) <= sysinfo->sysBuffer){
 	offset += sizeof(int);
 	output.size -= sizeof(int);
+        res = decoder((unsigned char*)(buffer+offset));
+        output.messageId = *((int*)res.output);
+        offset += res.numByte;
+	output.size -= res.numByte;
+	output.from = *((short int *)(buffer + offset)) ;
+    	offset += sizeof(short int);
+	output.size -= sizeof(short int);
+	rrec = rdoesExistByMsgId(output.messageId,LRG_MSG,output.from);
+	if(NULL == rrec){
 	output.type = *(buffer + offset) ;
     	offset += sizeof(unsigned char);
 	output.size -= sizeof(char);
 	output.to = *((short int *)(buffer + offset)) ;
     	offset += sizeof(short int);
 	output.size -= sizeof(short int);
-	output.from = *((short int *)(buffer + offset)) ;
-    	offset += sizeof(short int);
-	output.size -= sizeof(short int);
-        res = decoder((unsigned char*)(buffer+offset));
-        output.messageId = *((int*)res.output);
-        offset += res.numByte;
-	output.size -= res.numByte;
 	res = decoder((unsigned char*)(buffer+offset));
 	output.sysId = res.output;
 	offset += res.numByte;
 	output.size -= res.numByte;
+	// TODO : Change into dsize = output.size 
 	dsize = (*((int*)buffer)-offset);
 	output.data = (unsigned char*)malloc(dsize);
+	i = 0;
 	while(i < dsize){
 		output.data[i] = *(buffer+offset+i);
 		i += 1;
+	}
+	}else{
+		output.type = LRG_MSG;
+		dsize = (*((int*)buffer)-offset);
+		output.data = (unsigned char*)malloc(dsize);
+		output.from = rrec->from;
+		i = 0;
+		while(i < dsize){
+			output.data[i] = *(buffer+offset+i);
+			i += 1;
+		}
 	}
 }/*else{}*/
 return output;
@@ -678,14 +718,14 @@ char doesExistMsgId(int messageId,unsigned char type){
     return output;
 }
 
-recieverRecord* rdoesExistByMsgId(int messageId,unsigned char type) {
+recieverRecord* rdoesExistByMsgId(int messageId,unsigned char type,short int from) {
   recieverRecord *output=NULL;
   recieverRecord* prev,*t;
   t = recieverTable;
   prev = t;
   t = t->next;
   while(t != recieverTable && output==NULL ){
-	 if(t->messageId == messageId && t->type == type){
+	 if(t->messageId == messageId && t->type == type && from == t->from){
 	 output = t;
 	 }
 	 prev = t;
@@ -700,13 +740,13 @@ int getRecordByPort(short int from){
     if((sysinfo->recordTable[i]).port == from){
       return i;
     }
-i+=1;
+	i+=1;
   }
   return -1;
 }
 int createRecord(){
 	sysinfo->numRecords += 1;
-sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sysinfo->numRecords);
+	sysinfo->recordTable = (nRecord*)realloc(sysinfo->recordTable,sizeof(nRecord)*sysinfo->numRecords);
 	return ((sysinfo->numRecords)-1);
 }
 int getRecordBySid(char* sid){
@@ -715,7 +755,7 @@ int getRecordBySid(char* sid){
     if(!strcmp((sysinfo->recordTable[i]).sid ,sid)){
       return i;
     }
-i+=1;
+	i+=1;
   }
 
   return createRecord();
@@ -869,13 +909,15 @@ void rcheckStateAndProcess(){
   	}
 }
 void checkStateAndProcess(){
+	// TODO :  Skip the ones which have status = DEFAULT_STATUS+1
   	senderRecord* prev,*t,*p;
   	t = senderTable;
   	prev = t;
   	t = t->next;
   	while(t != senderTable){
   		// free the space in both if else
-  		//if(5 != t->type){
+  		// if(5 != t->type){
+		if((DEFAULT_STATUS+1) != t->status){
   		 if((0 == t->numTicks) && (0 == t->status)){
   			// mark the target system dead
   	 		prev->next = t->next;
@@ -886,7 +928,62 @@ void checkStateAndProcess(){
   	 		prev->next = t->next;
  		 	if(t->next==senderTable)pointer=prev;
               	   }
+		}
   		//}
+  	  	prev = t;
+  	  	t = t->next;
+      	}
+}
+
+void processFiles(){
+  	senderRecord* prev,*t,*p;
+	char i=0,j=0;
+	int cs,offset,size=(7+sizeof(short int)+sizeof(int)),rem;
+  	t = senderTable;
+  	prev = t;
+  	t = t->next;
+	FILE *f;
+	result res;
+  	while(t != senderTable){
+  		// free the space in both if else
+  		// if(5 != t->type){
+  		//}
+		if((DEFAULT_STATUS+1) == t->status){
+	// TODO : Actually send the chunks as per the bit vector
+			i = 0;j=0;
+			f = fopen((const char*)t->message,"rb+");
+			cs = sysinfo->recordTable[t->nr].buffer - (7 + sizeof(short int));
+			clm(bf);
+			*((short int*)bf) = sysinfo->recordTable[t->nr].port;
+			offset += sizeof(short int);
+			offset = sizeof(int);
+			res = encoder((unsigned char*)&(t->messageId),sizeof(int));
+			while(j < res.numByte){
+				*(bf+offset+j) = res.output[j];
+				j += 1;
+			}
+			offset += res.numByte;
+			*((short int*)(bf+offset)) = sysinfo->recordTable[t->nr].port;
+			offset += sizeof(short int);
+			while(i < t->bvc){
+			if((t->bv[i/8]&mask(i%8)) == 0){
+				if(i == t->bvc-1){
+                                	if(t->dsize%cs==0)rem=cs;
+                                	else rem=t->dsize%cs;
+                                	*((int *)(bf + sizeof(short int))) = (size+rem+1+res.numByte);
+					fseek(f,i*cs,SEEK_SET);
+					fread(bf+offset,1,rem,f);
+                        	}else{ 
+                                	*((int *)(bf + sizeof(short int))) = (size+cs+1+res.numByte);
+					fseek(f,i*cs,SEEK_SET);
+					fread(bf+offset,1,cs,f);
+                        	}   	
+    				sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
+			}
+				i += 1;
+			}
+			fclose(f);
+		}
   	  	prev = t;
   	  	t = t->next;
       	}
