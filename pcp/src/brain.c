@@ -199,6 +199,7 @@ int main(int argc, char **argv){
       while (1) {
         iMsg = getFromEar();
         if(iMsg.type != NOP){
+		DEBUG
 		if(SYS_MSG == (iMsg.type&SYS_MSG)){
 			if(LRG_MSG == (iMsg.type&LRG_MSG)){
 				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type,iMsg.from);
@@ -350,6 +351,9 @@ int main(int argc, char **argv){
 						if(doesExistMsgId(iMsg.messageId,SYS_MSG|PEER_MSG)){
 							deleteByMsgId(iMsg.messageId);
                         				narad(SYS_MSG|OK,0,sender,"\0",1,iMsg.messageId);
+							
+							narad(LRG_MSG,DEFAULT_STATUS,sender,"temp",799,generatemsgid());
+							pf((logs,"User Large Mesg Sent\n"));
 		    	    				pf((logs,"Sent OK for Msg %d To: %d\n",iMsg.messageId,sysinfo->recordTable[sender].port));
 						}else{
 							//send set difference
@@ -389,24 +393,26 @@ int main(int argc, char **argv){
 				recieverRecord* rec = rdoesExistByMsgId(iMsg.messageId,iMsg.type,iMsg.from);
 				sender = getRecordByPort(iMsg.from);
 				cs = iMsg.size-1; 
-				int timp=(sysinfo->recordTable[sender].buffer-(7+sizeof(short int)));
+				int timp = (sysinfo->recordTable[sender].buffer-(6+sizeof(short int)+sizeof(int)));
 				if(NULL != rec){
 					config = fopen((const char*)rec->data,"rb+");
 					i = *(iMsg.data);
 					*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
 					fseek(config,timp*i,SEEK_SET);
+ 					printf("\ncs: %d, dat: %d i : %d\n",cs,timp,i);
 					fwrite(iMsg.data+1,1,cs,config);
 					fclose(config);
 				}else{
 					res = decoder(iMsg.data);
 					res.output = (unsigned char*)realloc(res.output,res.numByte+ceil(log10(iMsg.messageId))+2);
 					sprintf(res.output,"%s_%d",res.output,iMsg.messageId);
-					config = fopen((const char*)res.output,"rb+");
+					config = fopen((const char*)res.output,"wb+");
 					fseek(config,*((int*)(iMsg.data+res.numByte)),SEEK_SET);
+					printf("sprintf: %s %d\n",res.output,*((int*)(iMsg.data+res.numByte)));
 					fclose(config);
 					addToRecieverTable(iMsg.type,DEFAULT_STATUS,iMsg.from,*(iMsg.data+res.numByte+sizeof(int))*DEFAULT_TICKS,iMsg.messageId,res.output,*(iMsg.data+res.numByte+sizeof(int)),*((int*)(iMsg.data+res.numByte)));
-					*((char*)&cs) = 6;
-					narad(SYS_MSG|OK,0,sender,((char*)&cs),1,iMsg.messageId);
+					*((unsigned char*)&cs) = 6;
+					narad(SYS_MSG|OK,0,sender,((unsigned char*)&cs),1,iMsg.messageId);
 				}
 				prt();
 			}else{
@@ -531,7 +537,9 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
 	pst();
 	}else{
 	// TODO : Send as file 
-		cs = nr->buffer - (7+sizeof(short int));
+	if(LRG_MSG == (type&LRG_MSG)){
+		cs = nr->buffer - (6+sizeof(short int)+sizeof(int));
+		printf("CS : %d\n",cs);
 		noc = ceil(dsize/(double)cs);
 	// TODO : If code hung up strlen is not working properly here 
 		res = encoder(data,strlen(data));
@@ -543,6 +551,7 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
 		*(bf+offset) = noc;
 		sendToFile(intfiles[1],bf,sysinfo->sysBuffer+sizeof(short int));
      		addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+	}else{}	
     }
 }
 
@@ -574,11 +583,13 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	output.from = *((short int *)(buffer + offset)) ;
     	offset += sizeof(short int);
 	output.size -= sizeof(short int);
+	printf("POST : %d %d %d\n",output.messageId,LRG_MSG,output.from);
 	rrec = rdoesExistByMsgId(output.messageId,LRG_MSG,output.from);
 	if(NULL == rrec){
 	output.type = *(buffer + offset) ;
     	offset += sizeof(unsigned char);
 	output.size -= sizeof(char);
+	printf("DBUG %d %d\n",output.size,output.type);
 	output.to = *((short int *)(buffer + offset)) ;
     	offset += sizeof(short int);
 	output.size -= sizeof(short int);
@@ -596,6 +607,7 @@ if(*((int*)buffer) <= sysinfo->sysBuffer){
 	}
 	}else{
 		output.type = LRG_MSG;
+		printf("CHECK %d %d\n",output.messageId,output.type);
 		dsize = (*((int*)buffer)-offset);
 		output.data = (unsigned char*)malloc(dsize);
 		output.from = rrec->from;
@@ -884,8 +896,9 @@ void rcheckStateAndProcess(){
   	rt = rt->next;
  	char c;
   	while(rt != recieverTable){
+		if ((DEFAULT_STATUS+1)!= rt->status){
   			// free the space in both if else
-  		  if((0 == rt->numTicks) && (0 == rt->status)&& ((DEFAULT_STATUS+1)!= rt->status)){
+  		  if((0 == rt->numTicks) && (0 == rt->status)){ 
   			// TODO : mark the target system dead
   	 		rprev->next = rt->next;
 		 	if(rt->next==recieverTable)rpointer=rprev;
@@ -899,15 +912,17 @@ void rcheckStateAndProcess(){
  				//assemble();
  				pf((logs,"\nRecieved whole Large Msg: %d\n",rt->messageId));
 				rt->status = DEFAULT_STATUS + 1;
-          			narad(OK,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
+          			narad(SYS_MSG|OK,DEFAULT_STATUS,getRecordByPort(rt->from),"OK",2,rt->messageId);
  				pf((logs,"\nSent OK for Msg %d\n",rt->messageId));
 				deleteByMsgId(rt->messageId);
  			}
-               	}
-  	  		rprev = rt;
-  	  		rt = rt->next;
+               	    }
+		}
+  	  rprev = rt;
+  	  rt = rt->next;
   	}
 }
+
 void checkStateAndProcess(){
 	// TODO :  Skip the ones which have status = DEFAULT_STATUS+1
   	senderRecord* prev,*t,*p;
@@ -937,8 +952,8 @@ void checkStateAndProcess(){
 
 void processFiles(){
   	senderRecord* prev,*t,*p;
-	char i=0,j=0;
-	int cs,offset,size=(7+sizeof(short int)+sizeof(int)),rem;
+	unsigned char i=0,j=0;
+	int cs,offset,size=(sizeof(short int)+sizeof(int)),rem;
   	t = senderTable;
   	prev = t;
   	t = t->next;
@@ -950,38 +965,52 @@ void processFiles(){
   		//}
 		if((DEFAULT_STATUS+1) == t->status){
 	// TODO : Actually send the chunks as per the bit vector
-			i = 0;j=0;
-			f = fopen((const char*)t->message,"rb+");
-			cs = sysinfo->recordTable[t->nr].buffer - (7 + sizeof(short int));
+			
+			i = 0;j=0;offset = 0;
+			f = fopen((const char*)t->message,"rb");
+			cs = sysinfo->recordTable[t->nr].buffer - (6 + sizeof(short int)+sizeof(int));
 			clm(bf);
 			*((short int*)bf) = sysinfo->recordTable[t->nr].port;
 			offset += sizeof(short int);
-			offset = sizeof(int);
+			offset += sizeof(int);
 			res = encoder((unsigned char*)&(t->messageId),sizeof(int));
 			while(j < res.numByte){
 				*(bf+offset+j) = res.output[j];
 				j += 1;
 			}
+// 			printf("BVC : %d %d %d\n",t->bvc,i,cs);
 			offset += res.numByte;
-			*((short int*)(bf+offset)) = sysinfo->recordTable[t->nr].port;
+			*((short int*)(bf+offset)) = sysinfo->port;
 			offset += sizeof(short int);
 			while(i < t->bvc){
 			if((t->bv[i/8]&mask(i%8)) == 0){
+// 				printf("In If");
+				*(bf+offset)=i;
+				clm(bf+offset+1);
 				if(i == t->bvc-1){
                                 	if(t->dsize%cs==0)rem=cs;
                                 	else rem=t->dsize%cs;
                                 	*((int *)(bf + sizeof(short int))) = (size+rem+1+res.numByte);
+					printf("REM _ Size: %d %d %d\n",size+rem+1+res.numByte,rem,i);
 					fseek(f,i*cs,SEEK_SET);
-					fread(bf+offset,1,rem,f);
+					fread((bf+offset+1),1,rem,f);
+					fwrite((bf+offset+1),1,rem,stdout);
+// 					printf("CH : %s %d\n",(bf+offset+1),rem);
                         	}else{ 
                                 	*((int *)(bf + sizeof(short int))) = (size+cs+1+res.numByte);
+					printf("Size: %d %d\n",size+cs+1+res.numByte,i);
 					fseek(f,i*cs,SEEK_SET);
-					fread(bf+offset,1,cs,f);
+					fread((bf+offset+1),1,cs,f);
+					fwrite((bf+offset+1),1,cs,stdout);
+// 					printf("CH : %s\n",(bf+offset+1));
                         	}   	
+				printf("PORT : %d\n",*((short int*)bf));
     				sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
 			}
 				i += 1;
 			}
+			t->status = DEFAULT_STATUS;
+			t->numTicks = t->bvc*sysinfo->recordTable[t->nr].numTicks;
 			fclose(f);
 		}
   	  	prev = t;
