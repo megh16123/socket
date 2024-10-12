@@ -12,7 +12,6 @@ static int BUFLEN;
 void sendTobrain(FILE *f, char *buf) {
   fseek(f, 0, SEEK_END);
   fwrite(buf, BUFLEN, 1, f);
-//printf("hello: %s\n",buf);
   fseek(f, 0, SEEK_END);
 }
 

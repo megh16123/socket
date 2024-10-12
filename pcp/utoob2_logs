@@ -9,17 +9,17 @@ Case 1: Recieved Buffer From: 1234
 
 -------------Sender--------------
   mesgID	Type	To
-  9965		130	utoob1
+  4207		130	utoob1
 ---------------------------------
 Sent Buffer To: 1234
 
 Mesg Came
-Case 0: Recieved OK for Message: 9965 From: 1234
+Case 0: Recieved OK for Message: 4207 From: 1234
 
 -------------Sender--------------
   mesgID	Type	To
-  9965		130	utoob1
-  9178		131	utoob1
+  4207		130	utoob1
+  5676		131	utoob1
 ---------------------------------
 
 Mesg Came
@@ -28,46 +28,46 @@ Case 7: Recieved Large Peer Info From: 4322
 
 -------------Sender--------------
   mesgID	Type	To
-  9178		131	utoob1
-  3560		129	utoob7
+  5676		131	utoob1
+  9048		129	utoob7
 ---------------------------------
 Sent Buffer to: 4890
 
 -------------Sender--------------
   mesgID	Type	To
-  9178		131	utoob1
-  3560		129	utoob7
-  5181		129	utoob8
+  5676		131	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
 ---------------------------------
 Sent Buffer to: 4891
 
 -------------Sender--------------
   mesgID	Type	To
-  9178		131	utoob1
-  3560		129	utoob7
-  5181		129	utoob8
-  5062		129	utoob9
+  5676		131	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
+  1754		129	utoob9
 ---------------------------------
 Sent Buffer to: 4892
 
 -------------Sender--------------
   mesgID	Type	To
-  9178		131	utoob1
-  3560		129	utoob7
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
+  5676		131	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
 ---------------------------------
 Sent Buffer to: 4893
 
 -------------Sender--------------
   mesgID	Type	To
-  9178		131	utoob1
-  3560		129	utoob7
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
-  2517		129	utoob99
+  5676		131	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
+  8728		129	utoob99
 ---------------------------------
 Sent Buffer to: 9000
 
@@ -83,94 +83,88 @@ utoob99		9000	512
 
 -------------Sender--------------
   mesgID	Type	To
-  3560		129	utoob7
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 User Large Mesg Sent
-Sent OK for Msg 9178 To: 1234
-
-Mesg Came
-Case 0: Recieved OK for Message: 8300 From: 1234
-
-Mesg Came
-Case 0: Recieved OK for Message: 8300 From: 1234
+Sent OK for Msg 5676 To: 1234
 
 -------------Sender--------------
   mesgID	Type	To
-  3560		129	utoob7
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  9048		129	utoob7
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 
-Resent Msg 3560 to 4890
+Resent Msg 9048 to 4890
 
 -------------Sender--------------
   mesgID	Type	To
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 
-Resent Msg 5181 to 4891
+Resent Msg 2185 to 4891
 
 -------------Sender--------------
   mesgID	Type	To
-  5181		129	utoob8
-  5062		129	utoob9
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  2185		129	utoob8
+  1754		129	utoob9
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 
-Resent Msg 5062 to 4892
+Resent Msg 1754 to 4892
 
 -------------Sender--------------
   mesgID	Type	To
-  5181		129	utoob8
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  2185		129	utoob8
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 
-Resent Msg 8551 to 4893
+Resent Msg 8014 to 4893
 
 -------------Sender--------------
   mesgID	Type	To
-  5181		129	utoob8
-  8551		129	utoob77
-  2517		129	utoob99
-  9178		128	utoob1
+  2185		129	utoob8
+  8014		129	utoob77
+  8728		129	utoob99
+  5676		128	utoob1
 ---------------------------------
 
-Resent Msg 2517 to 9000
+Resent Msg 8728 to 9000
 
 -------------Sender--------------
   mesgID	Type	To
-  5181		129	utoob8
-  8551		129	utoob77
+  2185		129	utoob8
+  8014		129	utoob77
 ---------------------------------
 
-Resent Msg 5181 to 4891
+Resent Msg 2185 to 4891
 
 -------------Sender--------------
   mesgID	Type	To
-  8551		129	utoob77
+  8014		129	utoob77
 ---------------------------------
 
-Resent Msg 8551 to 4893
+Resent Msg 8014 to 4893
 
 -------------Sender--------------
   mesgID	Type	To
-  8551		129	utoob77
+  8014		129	utoob77
 ---------------------------------
 
-Resent Msg 8551 to 4893
+Resent Msg 8014 to 4893

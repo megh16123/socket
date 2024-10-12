@@ -3,7 +3,7 @@ Configs File Read
 
 -------------Sender--------------
   mesgID	Type	To
-  9965		129	utoob2
+  4207		129	utoob2
 ---------------------------------
 
 Sent Buffer to Knowns
@@ -14,9 +14,9 @@ Case 2: Recieved reply Buffer From: 4322
 
 -------------Sender--------------
   mesgID	Type	To
-  9965		128	utoob2
+  4207		128	utoob2
 ---------------------------------
-Sent OK for Msg: 9965 To: 4322
+Sent OK for Msg: 4207 To: 4322
 
 Mesg Came
 
@@ -34,42 +34,10 @@ utoob99		9000	512
 
 -------------Sender--------------
   mesgID	Type	To
-  9965		128	utoob2
-  9178		131	utoob2
+  4207		128	utoob2
+  5676		131	utoob2
 ---------------------------------
 Sent Reply Peer Info to: 4322
 
 Mesg Came
-Case 0: Recieved OK for Message: 9178 From: 4322
-
-Mesg Came
-
--------------Sender--------------
-  mesgID	Type	To
-  9965		128	utoob2
-  8300		128	utoob2
----------------------------------
-
---------------Reciever-----------------
-  mesgID	Type	From	Vector
-  8300		64	4322	0
-
----------------------------------------
-
-Mesg Came
-
---------------Reciever-----------------
-  mesgID	Type	From	Vector
-  8300		64	4322	1
-
----------------------------------------
-
-Recieved whole Large Msg: 8300
-
--------------Sender--------------
-  mesgID	Type	To
-  9965		128	utoob2
-  8300		128	utoob2
----------------------------------
-
-Sent OK for Msg 8300
+Case 0: Recieved OK for Message: 5676 From: 4322

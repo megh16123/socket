@@ -45,15 +45,10 @@ int main(int argc, char **argv) {
       dsize = new - old;	
       if (dsize > 0 && 0 == (dsize % BUFLEN)) {
       	if((dsize/BUFLEN) > 1) dsize = BUFLEN;
-// 	printf("\ndsize: %d\n",dsize);
-// 	printf("new: %d, old: %d\n",new,old);
           fseek(f, old, SEEK_SET);
           dsize = dsize / BUFLEN;
           clm(buf);
           fread(buf, BUFLEN, 1, f);
-//  	  printf("---Mouth ----------\n");
-//   	  printf("MMDTA: %s\n",buf+23+2);
-// 	  printf("index: %d\n",*(buf+24));
           sendmessage(&sockfd, &receiverAddr, buf + sizeof(short int), *((short int *)buf));
           old +=  BUFLEN;
       } else {

@@ -18,9 +18,9 @@ ear: ${src}ear.c
 mouth: ${src}mouth.c
 	gcc -o mouth ${src}mouth.c
 brain: ${src}brain.c brainutil.o
-	gcc -o brain ${src}brain.c brainutil.o ${lib}ecdc.a -lm -I ${include}
+	gcc -o brain ${src}brain.c brainutil.o ${lib}ecdc.a -lm -lpthread -I ${include}
 ui: ${src}ui.c
-	gcc -o ui ${src}ui.c
+	gcc -o ui ${src}ui.c -I ${include}
 
 clean:
 	rm -f ear mouth ui brain launcher brainutil.o *logs
