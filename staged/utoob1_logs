@@ -1,0 +1,224 @@
+utoob1
+Configs File Read
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+---------------------------------
+NR 0: 6
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  2125		129	utoob2	]ª¥oﬂ(#
+---------------------------------
+NR 1: 6
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  2125		129	utoob2	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+---------------------------------
+NR 2: 6
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  2125		129	utoob2	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+---------------------------------
+NR 3: 6
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  2125		129	utoob2	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+---------------------------------
+NR 4: 6
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  2125		129	utoob2	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+---------------------------------
+NR 5: 6
+
+Sent Buffer to Knowns
+
+Mesg Came
+
+Case 2: Recieved reply Buffer From: 4322
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+Sent OK for Msg: 2125 To: 4322
+
+Mesg Came
+
+Case 7: Recieved Large Peer Info From: 1234
+
+--------------Record-------------
+  ID		Port	Buffer
+utoob7		4890	512
+utoob2		4322	512
+utoob8		4891	512
+utoob9		4892	512
+utoob77		4893	512
+utoob99		9000	512
+---------------------------------
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+  8522		131	utoob2	]ª¥oﬂ(;]ª¥oﬂ(‚]ª¥oﬂ(]ª¥oﬂ(']ª¥oﬂ({v]ª¥oﬂ(gN(#!
+---------------------------------
+Sent Reply Peer Info to: 4322
+
+Mesg Came
+Case 0: Recieved OK for Message: 8522 From: 4322
+
+-------------Sender--------------
+  mesgID	Type	To
+  2549		129	utoob7	]ª¥oﬂ(#
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+
+Resent Msg 2549 to 4890
+
+-------------Sender--------------
+  mesgID	Type	To
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+
+Resent Msg 6853 to 4891
+
+-------------Sender--------------
+  mesgID	Type	To
+  6853		129	utoob8	]ª¥oﬂ(#
+  8386		129	utoob9	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+
+Resent Msg 8386 to 4892
+
+-------------Sender--------------
+  mesgID	Type	To
+  6853		129	utoob8	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+
+Resent Msg 7367 to 4893
+
+-------------Sender--------------
+  mesgID	Type	To
+  6853		129	utoob8	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+  3927		129	utoob99	]ª¥oﬂ(#
+  2125		128	utoob2	
+---------------------------------
+
+Resent Msg 3927 to 9000
+
+-------------Sender--------------
+  mesgID	Type	To
+  6853		129	utoob8	]ª¥oﬂ(#
+  7367		129	utoob77	]ª¥oﬂ(#
+---------------------------------
+
+Resent Msg 6853 to 4891
+
+-------------Sender--------------
+  mesgID	Type	To
+  7367		129	utoob77	]ª¥oﬂ(#
+---------------------------------
+
+Resent Msg 7367 to 4893
+
+-------------Sender--------------
+  mesgID	Type	To
+  7367		129	utoob77	]ª¥oﬂ(#
+---------------------------------
+
+Resent Msg 7367 to 4893
+
+-------------Sender--------------
+  mesgID	Type	To
+  9800		64	utoob2	temp
+---------------------------------
+
+Mesg Came
+Case 0: Recieved OK for Message: 9800 From: 4322
+
+Mesg Came
+Case 0: Recieved OK for Message: 9800 From: 4322
+
+Mesg Came
+
+-------------Sender--------------
+  mesgID	Type	To
+  6142		128	utoob2	
+---------------------------------
+
+--------------Reciever-----------------
+  mesgID	Type	From	Vector
+  6142		64	4322	00
+
+---------------------------------------
+
+Mesg Came
+
+--------------Reciever-----------------
+  mesgID	Type	From	Vector
+  6142		64	4322	10
+
+---------------------------------------
+
+Mesg Came
+
+--------------Reciever-----------------
+  mesgID	Type	From	Vector
+  6142		64	4322	11
+
+---------------------------------------
+
+Recieved whole Large Msg: 6142
+
+-------------Sender--------------
+  mesgID	Type	To
+  6142		128	utoob2	Ä*ÀÆ∂Z
+---------------------------------
+
+Sent OK for Msg 6142
