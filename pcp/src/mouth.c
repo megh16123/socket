@@ -14,6 +14,7 @@ void sendmessage(int *sockfd, struct sockaddr_in *receiverAddr,unsigned char *me
   (*receiverAddr).sin_family = AF_INET;
   (*receiverAddr).sin_port = htons(port);
   (*receiverAddr).sin_addr.s_addr = INADDR_ANY;
+//       printf("CHECK\n");
   sendto(*sockfd, (const unsigned char *)messageStr, BUFLEN-sizeof(short int), 0, (const struct sockaddr *)receiverAddr, sizeof(struct sockaddr_in));
 }
 

@@ -1,40 +1,8 @@
-peer-information exchange
-flag = 0
-case 0:
-	if ok with no info then deleteByMessageId(sender.Mid)
-	else send peer info with type 7 and a new message Id
-	narad(7,DEFAULT_STATUS,sender,createThePeerData(),siezeof(createThePeerData()),generate_message_id());
-		
-case 1:
-	if flag != 0 then send ok with no info
-	else send ok with info request 
-	set flag = 1
+ 
+                    
+  rt		  rprev rp
 	
+ 4069 ->  7737 ->  RTab ->
+  ^			 v
+  <-----------------------
 
-case 7:
-	for i in peer_table:
-		if i not in my_peer_table and i not = sysinfo:
-			add_to_table(i)
-			then buffer_exhnge(i)
-		else:
-			continue;
-		if doesExistByMessageId(sender.Mid):
-			deleteByMessageId(sender.Mid)
-			sendOk(sender.Mid)
-		else:
-			send_table(my_peer_table - peer_table,sender,sender.Mid);
-			flg = 0
-processCompleted():
-	case 7:
-		for i in peer_table:
-			if i not in my_peer_table:
-				add_to_table(i)
-				then buffer_exhnge(i)
-			else:
-				continue;
-		if doesExistByMessageId(sender.Mid):
-			deleteByMessageId(sender.Mid)
-			sendOk(sender.Mid)
-		else:
-			send_table(my_peer_table - peer_table,sender,sender.Mid);
-			flg = 0

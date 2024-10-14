@@ -35,7 +35,6 @@ void getFromBrain(FILE * f, char *buf) {
 		new = ftell(f);
 		dsize = new - old;
   		if (dsize > 4) {
-// 			printf("READ new: %d, old: %d\n",new,old);
 			flg = 1;
 	    		fseek(f, old, SEEK_SET);
 			fread(buf, 1, BUFFLEN, f);
@@ -90,6 +89,7 @@ int main(int argc, char **argv)
 				}else{
 					printf("Message Could not be Sent \n");	
 				}
+				printline
 				break;
 			case '2':
 				*buf = choice;

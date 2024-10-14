@@ -107,7 +107,11 @@ void pst(){
    pf((logs,"\n-------------Sender--------------\n"));
    pf((logs,"  mesgID\tType\tTo\n"));
    while((temp != senderTable)){
+	if(SYS_MSG&temp->type == SYS_MSG){
           pf((logs,"  %d\t\t%d\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid));
+	}else{
+          pf((logs,"  %d\t\t%d\t%s\t%s\n",temp->messageId,temp->type,sysinfo->recordTable[temp->nr].sid,temp->message));
+	}
  	  prev = temp;
  	  temp = temp->next;
 }
@@ -129,7 +133,7 @@ int main(int argc, char **argv){
     	pthread_t tmp;
     	sysinfo = (sysInfo *)malloc(sizeof(sysInfo));
     	if (NULL == config) {
-      		pf((logs,"File didn't open \n"));
+      		pf((logs,"Config File didn't open \n"));
     	} else {
       		line = (char *)malloc(20);
       		while ((line[j] = fgetc(config)) != EOF) {
@@ -362,8 +366,6 @@ int main(int argc, char **argv){
 						if(doesExistMsgId(iMsg.messageId,SYS_MSG|PEER_MSG)){
 							deleteByMsgId(iMsg.messageId);
                         				narad(SYS_MSG|OK,0,sender,"\0",1,iMsg.messageId);
-//					narad(LRG_MSG,DEFAULT_STATUS,sender,"small",51,generatemsgid());
-							pf((logs,"User Large Mesg Sent\n"));
 		    	    				pf((logs,"Sent OK for Msg %d To: %d\n",iMsg.messageId,sysinfo->recordTable[sender].port));
 						}else{
 							//send set difference
@@ -382,11 +384,11 @@ int main(int argc, char **argv){
 								}
 							i++;
 							}
-							flg = 0;
                   					narad(SYS_MSG|PEER_MSG,DEFAULT_STATUS,sender,dat,wp,iMsg.messageId);
 		    	    				pf((logs,"Sent Reply Peer Info to: %d\n",sysinfo->recordTable[sender].port));
 							free(sendBv);
 						}
+							flg = 0;
 						break;
 					default:
 		    				pf((logs,"Not a valid TYpe\n"));
@@ -405,6 +407,7 @@ int main(int argc, char **argv){
 				cs = iMsg.size-1; 
 				int timp = (sysinfo->recordTable[sender].buffer-(6+sizeof(short int)+sizeof(int)));
 				if(NULL != rec){
+				printf("RECE : %d %s\n",timp,rec->data);
 					config = fopen((const char*)rec->data,"rb+");
 					i = *(iMsg.data);
 					*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
@@ -414,6 +417,7 @@ int main(int argc, char **argv){
 				}else{
 					res = decoder(iMsg.data);
 					res.output = (unsigned char*)realloc(res.output,res.numByte+ceil(log10(iMsg.messageId))+2);
+					printf("RECE : %d %s\n",timp,res.output);
 					sprintf(res.output,"%s_%d",res.output,iMsg.messageId);
 					config = fopen((const char*)res.output,"wb+");
 					fseek(config,*((int*)(iMsg.data+res.numByte)),SEEK_SET);
@@ -428,16 +432,16 @@ int main(int argc, char **argv){
 				//res = decoder(iMsg.data);
 				//res.output = (unsigned char*)realloc(res.output,res.numByte+ceil(log10(iMsg.messageId))+2);
 				//addToRecieverTable(iMsg.type,DEFAULT_STATUS+1,iMsg.from,0,iMsg.messageId,res.output,*(iMsg.data+res.numByte+sizeof(int)),*((int*)(iMsg.data+res.numByte)));
-				pf((logs,"Received user short msg : %s\n",iMsg.data));
+				pf((logs,"Received user short msg : %s from %d\n",iMsg.data,iMsg.from));
 				sender = getRecordByPort(iMsg.from);
 				narad(SYS_MSG|OK,0,sender,"\0",1,iMsg.messageId);
 			}			  	
 		}
       }
 	processUI();
+	processFiles();
         rcheckStateAndProcess();
 	processCompleted();
-	processFiles();
         checkStateAndProcess();
       }
     }
@@ -561,6 +565,7 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
 		*(bf+offset) = noc;
 		sendToFile(intfiles[1],bf,sysinfo->sysBuffer+sizeof(short int));
      		addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
+		printf("504 : %s\n",data);
 	}else{}	
     }
 	pst();
@@ -575,8 +580,6 @@ void printdecon(deconSys ds){
 	pf((logs,"to : %d\n",ds.to));
 	pf((logs,"sysid : %s\n",ds.sysId));
 	acces(ds.data,6);
-// 	pf((logs,"bv : %b\n",*(ds.data)));
-//	pf((logs,"data : %s\n",res.output));
 }
 deconSys convertSysMessage(char *buffer){
 // TODO : Change acoording to the order in writeMetaData
@@ -631,15 +634,17 @@ return output;
 }
 void bufferExchng() {
 	// for all knowns create system msg for buffer sending
-	i =0;
+	int bi;
+	bi =0;
 	result res;
   	deconSys imsg;
 	res = encoder(sysinfo->systemId,strlen(sysinfo->systemId));
 	res.output = (unsigned char*)realloc(res.output,(res.numByte+sizeof(int)));
 	*((int*)(res.output+res.numByte)) = sysinfo->sysBuffer;
-	while(i < sysinfo->numRecords){
-        narad(SYS_MSG|BUFF_MSG,DEFAULT_STATUS,i,res.output,(res.numByte+sizeof(int)),generatemsgid());
-		i += 1;
+	while(bi < sysinfo->numRecords){
+        narad(SYS_MSG|BUFF_MSG,DEFAULT_STATUS,bi,res.output,(res.numByte+sizeof(int)),generatemsgid());
+		pf((logs,"NR %d: %d\n",bi,sysinfo->numRecords));
+		bi += 1;
 	}
 
 }
@@ -660,14 +665,13 @@ void processUI(){
     fseek(bui,0,SEEK_END);
     switch(type){
     	case '1':
- 		narad(LRG_MSG,DEFAULT_STATUS,*((int*)(ubf+1)),(unsigned char*)(ubf+(2*sizeof(int))+1),*((int*)(ubf+sizeof(int)+1)),generatemsgid());
+ 		narad(LRG_MSG,DEFAULT_STATUS,*((int*)(ubf+1)),strdup((unsigned char*)(ubf+(2*sizeof(int))+1)),*((int*)(ubf+sizeof(int)+1)),generatemsgid());
 		break;
 	case '2':
 		// TODO : Delete the node from reciever table
 		offset=ftell(bui);
-	        //fwrite((unsigned char*)&offset,1,4,bui);
 		i = 0;
-		recieverRecord *rt;
+		recieverRecord *rt,*rprev;
   		rt = recieverTable;
   		rt = rt->next;
   		while(rt != recieverTable){
@@ -678,25 +682,33 @@ void processUI(){
   		}
 	        fwrite((int*)&(i),4,1,bui);
 		i = 0;
+ 		rprev = rt;
   		rt = recieverTable;
   		rt = rt->next;
   		while(rt != recieverTable){
 			if(rt->status == DEFAULT_STATUS+1){
 				fprintf(bui,"\n%s: %s",sysinfo->recordTable[getRecordByPort(rt->from)].sid,rt->data);
 				i++;
-			}
+		 		rprev->next = rt->next;
+		 		if(rt->next==recieverTable)rpointer=rprev;
+  	  			rt = rt->next;
+			}else{
+			rprev = rt;
   	  		rt = rt->next;
+			}
   		}
 		fputc('\n',bui);
     		fseek(bui,0,SEEK_END);
 		break;
 	case '3':
 	        fwrite((int*)&(sysinfo->numRecords),4,1,bui);
+	       
 		i = 0;
 		while(i < sysinfo->numRecords){
 			fprintf(bui,"\n%s",sysinfo->recordTable[i++].sid);
 		}
 		fputc('\n',bui);
+    		fseek(bui,0,SEEK_END);
 		break;
     }
     uold += sysinfo->sysBuffer;
@@ -1010,7 +1022,7 @@ void checkStateAndProcess(){
 		if((DEFAULT_STATUS+1) != t->status){
   		 if((0 == t->numTicks) && (0 == t->status)){
   			// mark the target system dead
-			if(SYS_MSG&t->type == SYS_MSG){
+			if((t->type&SYS_MSG) == SYS_MSG){
 			}else{	
     				bui = fopen(intfiles[3],"rb+");
 				fseek(bui,0,SEEK_END);
@@ -1054,6 +1066,10 @@ void processFiles(){
 			
 			i = 0;j=0;offset = 0;
 			f = fopen((const char*)t->message,"rb");
+			if(NULL == f){
+				printf("404 : Not found %d: %s\n",t->messageId,t->message);	
+				pst();
+			}	
 			cs = sysinfo->recordTable[t->nr].buffer - (6 + sizeof(short int)+sizeof(int));
 			clm(bf);
 			*((short int*)bf) = sysinfo->recordTable[t->nr].port;
@@ -1080,6 +1096,7 @@ void processFiles(){
                         	}else{ 
                                 	*((int *)(bf + sizeof(short int))) = (size+cs+1+res.numByte);
 					fseek(f,i*cs,SEEK_SET);
+					printf("SENDER : %d %d\n",cs,i);
 					fread((bf+offset+1),1,cs,f);
                         	}   	
     				sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));
