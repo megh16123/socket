@@ -1,7 +1,6 @@
 #include "ecdc.h"
 #include "brainutil.h"
 #include <time.h>
-
 #define pf(a) logs = fopen(id,"a"); fprintf a ; fclose(logs);
 #define DEBUG pf((logs,"\nMesg Came\n"));
 #define SYS_MSG 0x80 
@@ -124,6 +123,7 @@ int main(int argc, char **argv){
     // load config
     deconSys iMsg;
     if (argc == 2){
+	printf("\t\t\tTHIS \n");
     	config = fopen(argv[1], "r");
     	int linesRead = 0;
     	i = 0; j = 0;
@@ -407,7 +407,6 @@ int main(int argc, char **argv){
 				cs = iMsg.size-1; 
 				int timp = (sysinfo->recordTable[sender].buffer-(6+sizeof(short int)+sizeof(int)));
 				if(NULL != rec){
-				printf("RECE : %d %s\n",timp,rec->data);
 					config = fopen((const char*)rec->data,"rb+");
 					i = *(iMsg.data);
 					*(rec->bv + ((int)i / 8)) |= mask((int)i % 8);
@@ -417,7 +416,6 @@ int main(int argc, char **argv){
 				}else{
 					res = decoder(iMsg.data);
 					res.output = (unsigned char*)realloc(res.output,res.numByte+ceil(log10(iMsg.messageId))+2);
-					printf("RECE : %d %s\n",timp,res.output);
 					sprintf(res.output,"%s_%d",res.output,iMsg.messageId);
 					config = fopen((const char*)res.output,"wb+");
 					fseek(config,*((int*)(iMsg.data+res.numByte)),SEEK_SET);
@@ -438,7 +436,9 @@ int main(int argc, char **argv){
 			}			  	
 		}
       }
-	processUI();
+	if(0 == processUI()){
+		break;	
+	}
 	processFiles();
         rcheckStateAndProcess();
 	processCompleted();
@@ -448,7 +448,7 @@ int main(int argc, char **argv){
   } else {
     pf((logs,"\nToo few arguments brain \n"));
   }
-  fclose(logs);
+//   fclose(logs);
   return 0;
 }
 
@@ -565,7 +565,6 @@ void narad(unsigned char type,char status,int index, unsigned char *data,int dsi
 		*(bf+offset) = noc;
 		sendToFile(intfiles[1],bf,sysinfo->sysBuffer+sizeof(short int));
      		addToSenderTable(type,status,index,((nr->numTicks)*noc),mId,data,noc,dsize);
-		printf("504 : %s\n",data);
 	}else{}	
     }
 	pst();
@@ -649,10 +648,10 @@ void bufferExchng() {
 
 }
 
-void processUI(){
+char processUI(){
   int dsize,i,offset;
   unsigned char ubf[sysinfo->sysBuffer];
-  char type;
+  char type,output=1;
   fseek(uib, 0, SEEK_END);
   unew = ftell(uib);
   dsize = unew - uold;
@@ -665,6 +664,7 @@ void processUI(){
     fseek(bui,0,SEEK_END);
     switch(type){
     	case '1':
+		output = 0;
  		narad(LRG_MSG,DEFAULT_STATUS,*((int*)(ubf+1)),strdup((unsigned char*)(ubf+(2*sizeof(int))+1)),*((int*)(ubf+sizeof(int)+1)),generatemsgid());
 		break;
 	case '2':
@@ -714,6 +714,7 @@ void processUI(){
     uold += sysinfo->sysBuffer;
     fclose(bui);
   }
+	return output;
 }
 
 deconSys getFromEar(){
@@ -1066,10 +1067,6 @@ void processFiles(){
 			
 			i = 0;j=0;offset = 0;
 			f = fopen((const char*)t->message,"rb");
-			if(NULL == f){
-				printf("404 : Not found %d: %s\n",t->messageId,t->message);	
-				pst();
-			}	
 			cs = sysinfo->recordTable[t->nr].buffer - (6 + sizeof(short int)+sizeof(int));
 			clm(bf);
 			*((short int*)bf) = sysinfo->recordTable[t->nr].port;
@@ -1096,7 +1093,6 @@ void processFiles(){
                         	}else{ 
                                 	*((int *)(bf + sizeof(short int))) = (size+cs+1+res.numByte);
 					fseek(f,i*cs,SEEK_SET);
-					printf("SENDER : %d %d\n",cs,i);
 					fread((bf+offset+1),1,cs,f);
                         	}   	
     				sendToFile(intfiles[1], bf, sysinfo->sysBuffer + sizeof(short int));

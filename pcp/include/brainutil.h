@@ -102,4 +102,4 @@ void acces(unsigned char *out,int numbt);
 void processCompleted();
 int searchRecordByPort(int);
 void processFiles();
-void processUI();
+char processUI();

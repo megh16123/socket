@@ -8,7 +8,7 @@ all: launcher ear brain mouth ui
 #	./launcher ${conf}config
 
 launcher: ${src}launcher.c
-	gcc -o launcher ${src}launcher.c
+	gcc -o launcher ${src}launcher.c -lm
 
 brainutil.o:${src}brainutil.c
 	gcc -c ${src}brainutil.c -I ${include}
