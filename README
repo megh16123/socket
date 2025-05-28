@@ -1,0 +1,30 @@
+Functionalities Implemented:
+
+	* Buffer Exchange 
+	* Retrial of messages
+	* Peer Table Sharing
+	* Large File(Packets) along with resend
+	* Independent System  Up/Down handling
+------------------------------------------------------------------------------------------------------------------------------------------------->
+How to compile the code?
+
+To compile the code run `make` 
+------------------------------------------------------------------------------------------------------------------------------------------------->
+How to run the code?
+
+To run the code open atleast 3 instances of terminal, in the first terminal run 
+	1. ./launcher configs/conf2
+	2. ./launcher configs/config
+	3. ./launcher configs/conf3
+------------------------------------------------------------------------------------------------------------------------------------------------>
+How to test the code?
+ 
+	- To test the peer exchange:
+		select List Systems option in conf2(utoob2) after the config and conf3 are up, it must display all the systems which were not present in the conf2 file.
+	- To test the file sharing:
+		 * select send message option from the menu. 
+                 * it will ask for which system the file needs to be sent. 
+ 		 * enter the reciever of the intended file.
+		 * enter the <filename> to be sent
+		 * if the file is successfully sent then "Message Sent" will be displayed, select List messagges at the reciever end to verify.
+------------------------------------------------------------------------------------------------------------------------------------------------>

@@ -7,23 +7,35 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define BUFLEN 1024
+FILE *f;
+static int BUFLEN;
+void sendTobrain(char *fname,unsigned char *buf) {
+unsigned char ch;	
+	f = fopen(fname,"rb+");
+	fseek(f,0,SEEK_SET);
+	while((ch = fgetc(f))!='1'){
+		fclose(f);
+		f = fopen(fname,"rb+");
+		fseek(f,0,SEEK_SET);
+	}
+	//TODO: if domain of ch expands insert if ch == 1  here
 
-void sendTobrain(FILE *f, char *buf) {
-  fseek(f, 0, SEEK_END);
-  fwrite(buf, BUFLEN, 1, f);
-  fseek(f, 0, SEEK_END);
+	ch = '0';
+	fseek(f,1,SEEK_SET);
+	fwrite(buf,sizeof(unsigned char),BUFLEN,f);
+	fseek(f,0,SEEK_SET);
+	fputc(ch,f);
+	fclose(f);
 }
 
 int main(int argc, char **argv) {
-  if (argc == 3) {
+  if (argc == 4) {
     int LISTENPORT = atoi(argv[1]);
+    BUFLEN = atoi(argv[2]);
     int sockfd, n;
     socklen_t len;
-    char buffer[BUFLEN];
+    unsigned char buffer[BUFLEN];
     struct sockaddr_in receiverAddr, senderAddr;
-
-    FILE *f = fopen(argv[2], "ab");
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
       perror("socket system call failed");
       exit(EXIT_FAILURE);
@@ -42,10 +54,9 @@ int main(int argc, char **argv) {
     }
     len = sizeof(senderAddr);
     while (1) {
-      n = recvfrom(sockfd, buffer, BUFLEN - (sizeof(short int)), MSG_WAITALL,
-                   (struct sockaddr *)&senderAddr, &len);
-      buffer[n] = '\0';
-      sendTobrain(f, buffer);
+    memset(buffer, 0, BUFLEN);
+      n = recvfrom(sockfd, buffer, BUFLEN, MSG_WAITALL, (struct sockaddr *)&senderAddr, &len);
+      sendTobrain(argv[3], buffer);
     }
     fclose(f);
   } else {
